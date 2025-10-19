@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 import neptune
 import pandas as pd
 import torch
+import torchmetrics
 
 from recurrent_health_events_prediction.datasets.HospReadmDataset import (
     HospReadmDataset,
@@ -342,3 +343,51 @@ def make_tb_writer(log_dir: str | None = None):
     from torch.utils.tensorboard import SummaryWriter
     os.makedirs(log_dir, exist_ok=True)
     return SummaryWriter(log_dir=log_dir)
+
+def compute_val_auroc(model, val_loader) -> float:
+    """Compute AUROC on val_dataset using torchmetrics; no call to evaluate()."""
+    if val_loader is None:
+        return float("nan")
+    auroc_metric = torchmetrics.AUROC(task="binary", num_classes=2)
+    model.eval()
+    has_attention: bool = model.has_attention()
+    with torch.no_grad():
+        for batch in val_loader:
+            x_current, x_past, mask_past, labels = batch
+            x_current = x_current
+            x_past = x_past
+            mask_past = mask_past
+            labels = labels.float()
+
+            if has_attention:
+                logits, _ = model(x_current, x_past, mask_past)
+            else:
+                logits = model(x_current, x_past, mask_past)
+            probs = torch.sigmoid(logits.squeeze(-1))
+            auroc_metric.update(probs, labels)
+    model.train()
+    return float(auroc_metric.compute().item())
+
+def init_scheduler(optimizer, model_config, val_dataset=None):
+    """Initialize a learning rate scheduler if requested in model_config."""
+    sched_type = model_config.get("lr_scheduler", None)
+    scheduler = None
+
+    if sched_type == "plateau" and val_dataset is not None:
+        # Reduce LR when validation AUC (mode='max') stops improving
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode="max",
+            factor=0.5,
+            patience=3,
+            min_lr=1e-5,
+        )
+    elif sched_type == "cosine":
+        # Cosine decay schedule (no validation needed)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer,
+            T_max=model_config.get("num_epochs", 100),
+            eta_min=1e-5,
+        )
+
+    return scheduler

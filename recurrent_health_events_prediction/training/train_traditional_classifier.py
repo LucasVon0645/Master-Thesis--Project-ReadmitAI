@@ -413,6 +413,8 @@ def main(
     training_data_config = data_config['training_data'][dataset]
     train_test_data_dir = training_data_config["data_directory"]
     
+    print("Loading training data config from: ", train_test_data_dir)        
+    
     target_col = training_data_config["binary_event_col"]  # Variable to predict
     event_id_col = training_data_config["hosp_id_col"]
     class_names= training_data_config.get("class_names", None)
@@ -420,8 +422,8 @@ def main(
     missing_features = model_config.get('missing_features', None)
     next_admt_type_col = training_data_config.get("next_admt_type_col", None)
     
-    train_data_filepath = os.path.join(train_test_data_dir, "train_events.csv")
-    test_data_filepath = os.path.join(train_test_data_dir, "test_events.csv")
+    train_data_filepath = os.path.join(train_test_data_dir, "train_full.csv")
+    test_data_filepath = os.path.join(train_test_data_dir, "test.csv")
     
     print("Dataset: ", dataset)
     print("Loading training data from: ", train_data_filepath)
@@ -491,14 +493,13 @@ def main(
 
 if __name__ == "__main__":
     dataset = "mimic"  # Change to "mimic" if you want to run on MIMIC dataset or "relapse" for relapse dataset
-    multiple_hosp_patients = True  # True if patients can have multiple hospital admissions
+    multiple_hosp_patients = False  # True if patients can have multiple hospital admissions
     # Define Neptune tags for logging
     neptune_tags = [
         "baseline",
         dataset,
         "last_events",
         "traditional_classifiers",
-        "test_run"
     ]
     random_state = 42  # Set random state for reproducibility
     log_in_neptune = True  # Set to True to log the run in Neptune
