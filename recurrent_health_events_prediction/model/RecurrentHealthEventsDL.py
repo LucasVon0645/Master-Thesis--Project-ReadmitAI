@@ -101,6 +101,7 @@ class GRUNet(nn.Module):
 class AttentionPoolingNet(nn.Module):
     """
     Attention-pooling model for predicting health events from longitudinal and current features.
+    Query is a learned vector
 
     Replaces the GRU with:
         h_k = W v_k
@@ -110,6 +111,13 @@ class AttentionPoolingNet(nn.Module):
 
     Then concatenates z with x_current and feeds through a small MLP head.
     The output is a single logit per example (binary classification).
+    
+    a: learned query vector for attention scoring.
+    b: learned scalar bias for attention scoring.
+    W: learned projection matrix for visit representations.
+    s_k: attention score for visit k.
+    alpha_k: attention weight for visit k.
+    z: pooled representation of the longitudinal sequence.
 
     Args:
         input_size_curr:  D_curr, size of x_current.
@@ -215,6 +223,126 @@ class AttentionPoolingNet(nn.Module):
         feats = torch.cat([z, x_current], dim=1)        # [B, m + D_curr]
         logits = self.classifier_head(feats).squeeze(-1)  # [B]
         return logits, alpha
+
+class AttentionPoolingNetCurrentQuery(nn.Module):
+    """
+    Dot-product attention pooled over past visits, with a query from x_current.
+
+    Keys:   k_t = W_k v_t
+    Query:  q   = U_q x_current
+    Scores: s_t = (q · k_t) / sqrt(d_k) + b
+    Weights:alpha = softmax(masked s)
+    Pooled: z = sum_t alpha_t * value_t   (value_t = k_t by default, or W_v v_t)
+
+    Returns: logits [B], alpha [B, T]
+    """
+    def __init__(
+        self,
+        input_size_curr: int,      # D_curr
+        hidden_size_head: int,
+        input_size_seq: int,       # D_long
+        hidden_size_seq: int,      # d_k (attention dimension)
+        dropout: float = 0.0,
+        use_separate_values: bool = False,  # if True, values = W_v v_t; else values = keys
+        scale_scores: bool = True,          # divide by sqrt(d_k)
+    ):
+        super().__init__()
+        self.input_size_curr = input_size_curr
+        self.hidden_size_head = hidden_size_head
+        self.input_size_seq = input_size_seq
+        self.hidden_size_seq = hidden_size_seq
+        self.use_separate_values = use_separate_values
+        self.scale_scores = scale_scores
+
+        d_k = hidden_size_seq
+
+        # Key projection: k_t = W_k v_t
+        self.key_proj = nn.Linear(input_size_seq, d_k, bias=False)
+
+        # Optional distinct value projection: v^val_t = W_v v_t
+        if use_separate_values:
+            self.val_proj = nn.Linear(input_size_seq, d_k, bias=False)
+        else:
+            self.val_proj = None  # values = keys
+
+        # Query from current features: q = U_q x_current
+        self.query_proj = nn.Linear(input_size_curr, d_k, bias=False)
+
+        # Optional scalar bias added to scores
+        self.attn_bias = nn.Parameter(torch.zeros(()))
+
+        # Head over [z || x_current]
+        self.classifier_head = nn.Sequential(OrderedDict([
+            ("fc1", nn.Linear(d_k + input_size_curr, hidden_size_head)),
+            ("relu1", nn.ReLU()),
+            ("dropout1", nn.Dropout(dropout)),
+            ("fc2", nn.Linear(hidden_size_head, 1)),
+        ]))
+
+    def has_attention(self) -> bool:
+        return True
+
+    def _attend(
+        self,
+        K: torch.Tensor,          # [B_sel, T, d_k]  keys
+        q: torch.Tensor,          # [B_sel, d_k]     query from x_current
+        mask: torch.Tensor        # [B_sel, T]       True for valid steps
+    ) -> torch.Tensor:
+        """
+        Compute masked, (optionally) scaled dot-product attention weights.
+        Returns alpha: [B_sel, T]
+        """
+        d_k = K.size(-1)
+        # scores s_t = (q · k_t) / sqrt(d_k) + b
+        s = (K * q.unsqueeze(1)).sum(dim=-1)  # [B_sel, T]
+        if self.scale_scores and d_k > 0:
+            s = s / (d_k ** 0.5)
+        s = s + self.attn_bias
+        s = s.masked_fill(~mask, float("-inf"))
+        alpha = F.softmax(s, dim=1)
+        alpha = torch.nan_to_num(alpha, nan=0.0)  # handles all-pad rows safely
+        return alpha
+
+    def forward(
+        self,
+        x_current: torch.Tensor,     # [B, D_curr]
+        x_past: torch.Tensor,        # [B, T, D_long] (padded at end)
+        mask_past: torch.Tensor      # [B, T] (True for valid steps)
+    ):
+        assert x_past is not None and mask_past is not None and x_current is not None, \
+            "Must provide x_past, mask_past, and x_current"
+
+        device = x_past.device
+        B, T, _ = x_past.shape
+        mask = mask_past.bool()
+        lengths = mask.sum(dim=1)  # [B]
+
+        d_k = self.hidden_size_seq
+        z = torch.zeros(B, d_k, device=device)
+        alpha_full = torch.zeros(B, T, device=device)
+
+        has_past = lengths > 0
+        if has_past.any():
+            x_sel = x_past[has_past]                 # [B_sel, T, D_long]
+            m_sel = mask[has_past]                   # [B_sel, T]
+            q_sel = self.query_proj(x_current[has_past])  # [B_sel, d_k]
+
+            # Project to keys (and values)
+            K = self.key_proj(x_sel)                 # [B_sel, T, d_k]
+            V = self.val_proj(x_sel) if self.use_separate_values else K  # [B_sel, T, d_k]
+
+            # Attention weights via helper
+            alpha = self._attend(K, q_sel, m_sel)    # [B_sel, T]
+
+            # Pool values with weights
+            z_sel = torch.bmm(alpha.unsqueeze(1), V).squeeze(1)  # [B_sel, d_k]
+
+            z[has_past] = z_sel
+            alpha_full[has_past] = alpha
+
+        feats = torch.cat([z, x_current], dim=1)          # [B, d_k + D_curr]
+        logits = self.classifier_head(feats).squeeze(-1)   # [B]
+        return logits, alpha_full
 
 ## Transformer-style cross-attention pooling
 
