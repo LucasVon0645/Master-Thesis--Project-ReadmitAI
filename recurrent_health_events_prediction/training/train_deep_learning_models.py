@@ -111,6 +111,8 @@ def train(
     print(f"Number of training samples: {len(train_dataset)}")
     print(f"Batch size: {model_config['batch_size']}")
     print(f"Learning rate: {model_config['learning_rate']}")
+    print(f"Weight decay: {model_config.get('weight_decay', 0.0)}")
+    print(f"LR Scheduler: {model_config.get('lr_scheduler')}")
     print("Optimizer: AdamW")
     print("Loss function: BCEWithLogitsLoss\n")
 
@@ -581,7 +583,7 @@ def main(
 
 if __name__ == "__main__":
     print("Imports complete. Running main...")
-    model_dir_name = "cross_attention_pooling"  # Change as needed
+    model_dir_name = "attention_pooling_query_curr"  # Change as needed
     multiple_hosp_patients = True  # True if patients can have multiple hospital admissions
     save_scaler_dir_path = f"/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/scalers"
     model_config_path = f"/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/{model_dir_name}"

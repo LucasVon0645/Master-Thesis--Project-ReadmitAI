@@ -99,18 +99,29 @@ def save_study_artifacts(
     # (must match how you injected inside objective())
     p = best_params
     best_config["learning_rate"] = p["learning_rate"]
-    best_config["batch_size"]    = p["batch_size"]
+    best_config["batch_size"] = p["batch_size"]
+    best_config["weight_decay"] = p["weight_decay"]
+    best_config["lr_scheduler"] = p["lr_scheduler"]
     best_config["model_params"]["hidden_size_head"] = p["hidden_size_head"]
-    best_config["model_params"]["dropout"]          = p["dropout"]
+    best_config["model_params"]["dropout"] = p["dropout"]
+    best_config["model_params"]["hidden_size_seq"] = p["hidden_size_seq"]
 
     if model_class_name == "GRUNet":
-        best_config["model_params"]["hidden_size_seq"] = p["hidden_size_seq"]
-        best_config["model_params"]["num_layers_seq"]  = p["num_layers_seq"]
         best_config["model_class"] = "GRUNet"
-    else:
-        best_config["model_params"]["hidden_size_seq"] = p["hidden_size_seq"]
+        best_config["model_params"]["num_layers_seq"]  = p["num_layers_seq"]
+    elif model_class_name == "CrossAttnPoolingNet":
+        best_config["model_class"] = "CrossAttnPoolingNet"
+        best_config["model_params"]["num_heads"] = p["num_heads"]
+        best_config["model_params"]["use_posenc"] = p["use_posenc"]
+    elif model_class_name == "AttentionPoolingNet":
         best_config["model_class"] = "AttentionPoolingNet"
-    
+        # no extra params
+    elif model_class_name == "AttentionPoolingNetCurrentQuery":
+        best_config["model_class"] = "AttentionPoolingNetCurrentQuery"
+        best_config["model_params"]["use_separate_values"] = p["use_separate_values"]
+        best_config["model_params"]["scale_scores"] = p["scale_scores"]
+
+    # Save best config
     best_config_path = out / "best_config.yaml"
     with open(best_config_path, "w") as f:
         yaml.safe_dump(best_config, f, sort_keys=False)
