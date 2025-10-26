@@ -1,0 +1,77 @@
+current_feat_cols:
+  - LOG_HOSPITALIZATION_DAYS
+  - LOG_DAYS_IN_ICU
+  - CHARLSON_INDEX
+  - LOG_NUM_DRUGS
+  - NUM_PROCEDURES
+  - LOG_PARTICIPATION_DAYS
+  - HAS_DIABETES
+  - HAS_COPD
+  - HAS_CONGESTIVE_HF
+  - DISCHARGE_LOCATION_POST_ACUTE_CARE
+  - DISCHARGE_LOCATION_HOME
+  - AGE
+  - GENDER_M
+  - ADMISSION_TYPE_ELECTIVE
+  - ETHNICITY_WHITE
+  - ETHNICITY_BLACK
+  - ETHNICITY_HISPANIC
+  - INSURANCE_MEDICAID
+  - INSURANCE_PRIVATE
+past_summary_feat_cols:
+  - NUM_PREV_HOSPITALIZATIONS
+  - LOG_DAYS_SINCE_LAST_HOSPITALIZATION
+  - READM_30_DAYS_PAST_MEAN
+  - READM_30_DAYS_PAST_SUM
+  - LOG_DAYS_UNTIL_NEXT_HOSP_PAST_MEDIAN
+  - LOG_DAYS_UNTIL_NEXT_HOSP_PAST_STD
+missing_features:
+  READM_30_DAYS_PAST_MEAN: median
+  READM_30_DAYS_PAST_SUM: median
+  LOG_DAYS_SINCE_LAST_HOSPITALIZATION: median
+  LOG_DAYS_UNTIL_NEXT_HOSP_PAST_MEDIAN: median
+  LOG_DAYS_UNTIL_NEXT_HOSP_PAST_STD: median
+logistic_regression:
+  param_distributions:
+    penalty: [l2, l1]
+    solver: [liblinear]
+    fit_intercept: [true, false]
+  rand_search_config:
+    n_iter: 30
+    cv: 5
+    scoring: roc_auc
+    n_jobs: 4
+  additional_params:
+    max_iter: 1000
+    class_weight: balanced
+random_forest:
+  param_distributions:
+    n_estimators: [50, 100, 200, 300]
+    max_depth: [None, 3, 5, 10, 12]
+    min_samples_split: [2, 5, 10, 15, 20]
+    min_samples_leaf: [1, 2, 4]
+    max_features: [sqrt, log2]
+  rand_search_config:
+    n_iter: 30
+    cv: 5
+    scoring: roc_auc
+    n_jobs: 4
+  additional_params:
+    class_weight: balanced
+lgbm:
+  param_distributions: 
+    n_estimators: [50, 100, 200]
+    max_depth: [3, 4, 6, -1]
+    min_child_samples: [5, 10, 20, 30]
+    num_leaves: [7, 15, 31]
+    subsample: [0.6, 0.8, 1.0]
+    feature_fraction: [0.6, 0.8, 1.0]
+  rand_search_config:
+    n_iter: 5
+    cv: 5
+    scoring: roc_auc
+    n_jobs: 4
+  additional_params:
+    class_weight: balanced
+    importance_type: gain
+    verbose: -1

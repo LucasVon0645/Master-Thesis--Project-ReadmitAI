@@ -6,6 +6,7 @@ data
 .neptune
 _runs
 _runs_optuna
+_nb_experiments
 __pycache__
 _models
 *.pyc
