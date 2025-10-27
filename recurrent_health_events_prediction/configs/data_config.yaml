@@ -144,6 +144,39 @@ training_data:
     - "120+"
     binary_event_col: "READMISSION_30_DAYS"
     binary_threshold: 30 # in days
+inference:
+  mimic:
+    model_filepath: "C:/Users/User/projects/msc-thesis-recurrent-health-modeling/_runs/attention_pooling_20251020_143800/multiple_hosp_patients_model.pth"
+    model_config_path: "C:/Users/User/projects/msc-thesis-recurrent-health-modeling/_runs/attention_pooling_20251020_143800/model_config.yaml"
+    scaler_filepath: "C:/Users/User/projects/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/scalers/multiple_hosp_patients/scaler.joblib"
+    required_cols:
+      admissions_diagnoses:
+      - "HADM_ID"
+      - "SUBJECT_ID"
+      - "ADMITTIME"
+      - "DISCHTIME"
+      - "ADMISSION_TYPE"
+      - "INSURANCE"
+      - "ETHNICITY"
+      - "DISCHARGE_LOCATION"
+      - "ICD9_CODE"
+      icu_stays:
+      - "SUBJECT_ID"
+      - "HADM_ID"
+      - "INTIME"
+      - "OUTTIME"
+      prescriptions:
+      - "HADM_ID"
+      - "SUBJECT_ID"
+      - "DRUG"
+      procedures:
+      - "HADM_ID"
+      - "SUBJECT_ID"
+      - "ICD9_CODE"
+      patients:
+      - "SUBJECT_ID"
+      - "GENDER"
+      - "DOB"
 final_results:
     mimic_path: "/workspaces/msc-thesis-recurrent-health-modeling/results/mimic"
     relapse_path: "/workspaces/msc-thesis-recurrent-health-modeling/results/drug_relapse"
