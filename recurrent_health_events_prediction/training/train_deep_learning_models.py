@@ -540,7 +540,7 @@ def main(
     print("Output path for test predictions: ", pred_test_output_filepath)
     save_test_predictions(
         out_path=pred_test_output_filepath,
-        id_series=last_events_test_dataset.sample_ids,
+        id_series=last_events_test_dataset.hadm_ids,
         y_true=all_labels,
         proba_dict={model_dir_name: all_pred_probs},
         pred_dict={model_dir_name: all_pred_labels},

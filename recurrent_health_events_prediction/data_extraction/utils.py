@@ -4,12 +4,12 @@ def assign_charlson_category(df, icd_column="ICD9_CODE"):
     """
     This function assigns to ICD-9 codes the categories used by
     the Charlson Comorbidity Index (CCI)
-    --
+    
     Reference for CCI:
     (1) Charlson ME, Pompei P, Ales KL, MacKenzie CR. (1987) A new method
     of classifying prognostic comorbidity in longitudinal studies: 
     development and validation.J Chronic Dis; 40(5):373-83.
-    --
+    
     (2) Charlson M, Szatrowski TP, Peterson J, Gold J. (1994) Validation
     of a combined comorbidity index. J Clin Epidemiol; 47(11):1245-51.
 

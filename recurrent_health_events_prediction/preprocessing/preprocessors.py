@@ -2,15 +2,17 @@ import os
 from typing import Optional
 import pandas as pd
 import numpy as np
+from sklearn.discriminant_analysis import StandardScaler
 from recurrent_health_events_prediction.preprocessing.feature_extraction import FeatureExtractorDrugRelapse, FeatureExtractorMIMIC
-from recurrent_health_events_prediction.preprocessing.utils import bin_time_col_into_cat, calculate_past_rolling_stats
+from recurrent_health_events_prediction.preprocessing.utils import bin_time_col_into_cat, calculate_past_rolling_stats, remap_discharge_location, remap_mimic_races
+from recurrent_health_events_prediction.training.utils import preprocess_features_to_one_hot_encode
 
 class DataPreprocessorMIMIC:
     def __init__(self, config):
         self.config = config
         self.admission_types_to_consider = config.get("admission_types_to_consider")
 
-    def preprocess(self, **kwargs):
+    def preprocess(self, save_data: Optional[bool] = True, **kwargs):
         print("Preprocessing MIMIC dataset...")
         print("Building features...")
         events_df = FeatureExtractorMIMIC.build_features(**kwargs)
@@ -43,37 +45,34 @@ class DataPreprocessorMIMIC:
         
         all_events_df = pd.concat([historical_events_df, last_events_df], ignore_index=True)
         all_events_df = all_events_df.sort_values(by=["SUBJECT_ID", "ADMITTIME"]).reset_index(drop=True)
+        if save_data:
+            print("Saving processed data...")
+            # Save the processed data
+            self.save_training_data(historical_events_df, last_events_df, all_events_df, self.config["preprocessed_output_path_1st_round"])
+        
+        return all_events_df
 
-        # Save the processed data
-        self.save_training_data(historical_events_df, last_events_df, all_events_df, self.config["preprocessed_output_path_1st_round"])
+    def preprocess_inference(self, scaler: Optional[StandardScaler] = None, **kwargs):
+        df = FeatureExtractorMIMIC.build_features(**kwargs)
+        df = self._clip_features(df)
+        df = self._add_log_cols(df)
+        
+        df = remap_discharge_location(df)
+        df = remap_mimic_races(df)
+                
+        config = self.config
+        one_hot_encode_cols = config.get("features_to_one_hot_encode", [])
+        one_hot_cols_to_drop = config.get("one_hot_encode_cols_to_drop", [])
 
-    def _define_last_events_old(self, events_df: pd.DataFrame):
-        """
-        Define the last events for each patient in the dataset.
-        This method identifies the last event for each patient based on the admission time and whether the patient had a hospital death event.
-        It marks the last event with a new column 'LAST_EVENT' and returns the modified DataFrame.
-        Args:
-            events_df (pd.DataFrame): DataFrame containing event data with columns 'SUBJECT_ID', 'ADMITTIME', 'HADM_ID', and 'IN_HOSP_DEATH_EVENT'.
-        Returns:
-            pd.DataFrame: DataFrame with an additional column 'LAST_EVENT' indicating the last event for each patient.
-        """
-        consider_death_after_discharge_gt = self.config.get("consider_death_after_discharge_gt", np.inf)
-        events_df['IS_LAST_EVENT'] = 0
+        df, _ = preprocess_features_to_one_hot_encode(df, one_hot_encode_cols, one_hot_cols_to_drop)
 
-        invalid_events = (events_df["IN_HOSP_DEATH_EVENT"] == 1) | (
-            (events_df["AFTER_HOSP_DEATH_EVENT"] == 1)
-            & (events_df["DEATH_TIME_AFTER_LAST_DISCHARGE"] <= consider_death_after_discharge_gt)
-        )
+        features_to_scale = config.get("features_to_scale", [])
+        features_to_scale = [feat for feat in features_to_scale if feat in df.columns]
 
-        valid_events_df = events_df[~invalid_events].sort_values(by=["SUBJECT_ID", "ADMITTIME"]).reset_index(drop=True)
+        if scaler:
+            df[features_to_scale] = scaler.transform(df[features_to_scale])
 
-        # Identify the last readmission event of each patient
-        last_event_ids = valid_events_df.groupby("SUBJECT_ID").last().reset_index()["HADM_ID"].unique()
-
-        # Mark the last events
-        events_df.loc[events_df["HADM_ID"].isin(last_event_ids), "IS_LAST_EVENT"] = 1
-
-        return events_df
+        return df
     
     def _define_last_events(self, events_df: pd.DataFrame):
         """

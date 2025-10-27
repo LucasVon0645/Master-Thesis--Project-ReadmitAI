@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import pandas as pd
 import torch
@@ -25,10 +26,11 @@ class HospReadmDataset(Dataset):
 
     def __init__(
         self,
-        csv_path: str,
         max_seq_len: int,
         longitudinal_feat_cols: list[str],     # features for x_past (sequence features)
         current_feat_cols: list[str],          # features for x_current (current-visit features)
+        csv_path: Optional[str] = None,
+        dataframe: Optional[pd.DataFrame] = None,
         no_elective: bool = True,
         subject_id_col: str = "SUBJECT_ID",
         order_col: str = "ADMITTIME",
@@ -41,7 +43,14 @@ class HospReadmDataset(Dataset):
         super().__init__()
         self.csv_path = csv_path
         self.max_seq_len = max_seq_len
-
+        
+        if dataframe is None and csv_path is None:
+            raise ValueError("Either 'dataframe' or 'csv_path' must be provided.")
+        elif csv_path is not None:
+            self.dataframe = self._load_dataframe()
+        else:
+            self.dataframe = dataframe
+            
         self.longitudinal_feat_cols = longitudinal_feat_cols
         self.current_feat_cols = current_feat_cols
 
@@ -54,7 +63,7 @@ class HospReadmDataset(Dataset):
         self.reverse_chronological_order = reverse_chronological_order
         self.last_events_only = last_events_only
 
-        self.sample_ids = []  # to be filled with HADM_IDs of samples
+        self.hadm_ids = []  # to be filled with HADM_IDs of samples
         self.samples = self._build_sequences()
 
     def _load_dataframe(self) -> pd.DataFrame:
@@ -76,7 +85,7 @@ class HospReadmDataset(Dataset):
             raise ValueError(f"Missing required columns in CSV: {sorted(set(missing))}")
 
     def _build_sequences(self) -> list[dict]:
-        df = self._load_dataframe()
+        df = self.dataframe
         self._validate_columns(df)
 
         # sort by time so rows are oldest→newest inside each subject
@@ -91,7 +100,7 @@ class HospReadmDataset(Dataset):
             g_lab  = g[self.label_col]
             g_id = g[self.hosp_id_col]
             admit_types = g[self.next_admt_type_col] if self.next_admt_type_col in g.columns else None
-
+            
             n = len(g)
   
             # Iterate t=1..n, where t indexes the *current* visit within the subject
@@ -153,7 +162,7 @@ class HospReadmDataset(Dataset):
                     }
                 )
 
-        self.sample_ids = current_hosp_ids
+        self.hadm_ids = current_hosp_ids
         
         return samples
 

@@ -73,7 +73,8 @@ class FeatureExtractorMIMIC:
         merged_df['NUM_COMORBIDITIES'] = merged_df['NUM_COMORBIDITIES'].fillna(0).astype(int)
         merged_df['CHARLSON_INDEX'] = merged_df['CHARLSON_INDEX'].fillna(0).astype(int)
         merged_df['PARTICIPATION_DAYS'] = merged_df['PARTICIPATION_DAYS'].astype(int)
-        merged_df['TOTAL_PARTICIPATION_DAYS'] = merged_df['TOTAL_PARTICIPATION_DAYS'].astype(int)
+        if 'TOTAL_PARTICIPATION_DAYS' in merged_df.columns:
+            merged_df['TOTAL_PARTICIPATION_DAYS'] = merged_df['TOTAL_PARTICIPATION_DAYS'].astype(int)
         merged_df['PREV_READMISSION_30_DAYS'] = merged_df['PREV_READMISSION_30_DAYS'].fillna(-1).astype(int)
         merged_df['READMISSION_30_DAYS'] = merged_df['READMISSION_30_DAYS'].fillna(0).astype(int)
 
@@ -247,6 +248,9 @@ class FeatureExtractorMIMIC:
         """
         Get the participation days until patient discharge for every admission.
         """
+        if "DOD" not in admissions_df.columns:
+            return admissions_df
+    
         admissions_df["TOTAL_PARTICIPATION_DAYS"] = np.where(
             admissions_df["DOD"].notna(),
             (admissions_df["DOD"] - admissions_df["FIRST_ADMITTIME"]).dt.days,
@@ -261,6 +265,9 @@ class FeatureExtractorMIMIC:
         """
         Get the time of death after the last discharge for each patient.
         """
+        if "DOD" not in admissions_df.columns:
+            return admissions_df
+        
         admissions_df['DOD'] = pd.to_datetime(admissions_df['DOD'])
         admissions_df['LAST_DISCHTIME'] = pd.to_datetime(admissions_df['LAST_DISCHTIME'])
 
