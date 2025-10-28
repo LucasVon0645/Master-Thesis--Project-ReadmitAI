@@ -1,11 +1,25 @@
+import json
 from functools import lru_cache
-from typing import Dict, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any, Dict, List
+from fastapi import APIRouter, Depends, HTTPException, Body
 
+from recurrent_health_events_prediction.api.routes.utils import _to_dict_list
 from recurrent_health_events_prediction.api.schemas import BatchPayload, PredictionEnvelope
 from recurrent_health_events_prediction.api.services.prediction import ModelPrediction
+from pathlib import Path
+
+# ----------------------- load payload examples -----------------------
+EXAMPLE_RESPONSE_PATH = Path(__file__).parent / ".." / "docs" / "example_payload_predict.json"
+with EXAMPLE_RESPONSE_PATH.open("r") as f:
+    example_payload_predict = json.load(f)
+    
+# ----------------------- load response examples -----------------------
+EXAMPLE_RESPONSE_PATH = Path(__file__).parent / ".." / "docs" / "example_response_predict.json"
+with EXAMPLE_RESPONSE_PATH.open("r") as f:
+    example_response_predict = json.load(f)
 
 
+# ----------------------- define router and endpoints -----------------------
 router = APIRouter(prefix="/predict", tags=["predict"])
 
 
@@ -18,22 +32,34 @@ def get_service() -> ModelPrediction:
     return ModelPrediction()
 
 
-@router.post("", response_model=PredictionEnvelope)
-def predict(payload: BatchPayload, svc: ModelPrediction = Depends(get_service)) -> PredictionEnvelope:
+@router.post(
+    "",
+    response_model=PredictionEnvelope,
+    summary="Batch prediction for patient data",
+    description="Receives patient-related tables and returns model predictions.",
+    responses=example_response_predict
+)
+def predict(
+    payload: BatchPayload = Body(..., description="Batched patient data for prediction.", example=example_payload_predict),
+    svc: ModelPrediction = Depends(get_service),
+) -> PredictionEnvelope:
     """
     Batch prediction endpoint.
-    Accepts five tables, returns probabilities/labels (+ optional IDs, attention).
+
+    **Request body:**  
+    Provide patient-related tables as JSON arrays (`admissions`, `diagnoses`, `icu_stays`, `procedures`, `prescriptions`, `patients`, `targets`).  
+    Each table enforces required columns internally.
+
+    **Returns:**  
+    A `PredictionEnvelope` object with predictions and optional metrics.
     """
     try:
-        rows: Dict[str, List[dict]] = {
-            "admissions_diagnoses": payload.admissions_diagnoses,
-            "icu_stays": payload.icu_stays,
-            "procedures": payload.procedures,
-            "prescriptions": payload.prescriptions,
-            "patients": payload.patients,
-        }
-        result = svc.predict(rows)  # returns the envelope dict
+        keys_payload = tuple(BatchPayload.model_fields.keys())
+        rows_dict: Dict[str, List[Dict[str, Any]]] = {k: _to_dict_list(getattr(payload, k, [])) for k in keys_payload}
+
+        result = svc.predict(rows_dict)  # returns the envelope dict
         return result  # FastAPI will validate/serialize to PredictionEnvelope
+
     except FileNotFoundError as e:
         # Missing model/scaler artifacts
         raise HTTPException(status_code=500, detail=str(e))

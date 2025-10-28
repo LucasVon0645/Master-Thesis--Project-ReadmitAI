@@ -18,6 +18,9 @@ class FeatureExtractorMIMIC:
         Build features for the given disease recurrence DataFrame.
         """
         
+        # Fix datetime columns
+        admissions_df, icu_stays_df, patients_metadata_df = cls._fix_datetime_cols(admissions_df, icu_stays_df, patients_metadata_df)
+        
         # Calculate time in ICU for each patient for every admission
         icu_stay_features_df = cls._calculate_days_in_icu(icu_stays_df)
         
@@ -337,6 +340,23 @@ class FeatureExtractorMIMIC:
 
         admissions_df["CHARLSON_INDEX"] = admissions_df.apply(compute_index, axis=1)
         return admissions_df
+
+    @classmethod
+    def _fix_datetime_cols(cls, admissions_df: pd.DataFrame, icu_stays_df: pd.DataFrame, patients_df: pd.DataFrame):
+        # Convert date columns
+        admissions_df["ADMITTIME"] = pd.to_datetime(
+            admissions_df["ADMITTIME"], errors="coerce"
+        )
+        admissions_df["DISCHTIME"] = pd.to_datetime(
+            admissions_df["DISCHTIME"], errors="coerce"
+        )
+        icu_stays_df["INTIME"] = pd.to_datetime(icu_stays_df["INTIME"], errors="coerce")
+        icu_stays_df["OUTTIME"] = pd.to_datetime(
+            icu_stays_df["OUTTIME"], errors="coerce"
+        )
+        patients_df["DOB"] = pd.to_datetime(patients_df["DOB"], errors="coerce")
+
+        return admissions_df, icu_stays_df, patients_df
 
 class FeatureExtractorDrugRelapse:
     """

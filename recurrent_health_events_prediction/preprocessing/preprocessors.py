@@ -16,7 +16,7 @@ class DataPreprocessorMIMIC:
         print("Preprocessing MIMIC dataset...")
         print("Building features...")
         events_df = FeatureExtractorMIMIC.build_features(**kwargs)
-    
+
         events_df = self._clip_features(events_df)
         print("Defining readmission events...")
         events_df = self._define_events(events_df)
@@ -35,36 +35,67 @@ class DataPreprocessorMIMIC:
 
         print("Categorizing readmission time...")
         events_df = self._categorize_readmission_time(events_df)
-        
+
         print("Reordering columns...")
         # Reorder columns for better organization
         events_df = self._reorder_columns(events_df)
         # Split the DataFrame into last events and historical events
         print("Splitting last and historical events...")
         historical_events_df, last_events_df = self._split_last_and_historical_events(events_df)
-        
+
         all_events_df = pd.concat([historical_events_df, last_events_df], ignore_index=True)
         all_events_df = all_events_df.sort_values(by=["SUBJECT_ID", "ADMITTIME"]).reset_index(drop=True)
         if save_data:
             print("Saving processed data...")
             # Save the processed data
             self.save_training_data(historical_events_df, last_events_df, all_events_df, self.config["preprocessed_output_path_1st_round"])
-        
+
         return all_events_df
 
-    def preprocess_inference(self, scaler: Optional[StandardScaler] = None, **kwargs):
-        df = FeatureExtractorMIMIC.build_features(**kwargs)
+    def preprocess_inference(
+        self,
+        admissions_df: pd.DataFrame,
+        icu_stays_df: pd.DataFrame,
+        patients_df: pd.DataFrame,
+        prescriptions_df: pd.DataFrame,
+        procedures_df: pd.DataFrame,
+        one_hot_encoder_filepath: str = None,
+        scaler: Optional[StandardScaler] = None,
+    ) -> pd.DataFrame:
+        """
+        Preprocess the MIMIC dataset for inference.
+        Args:
+            admissions_df (pd.DataFrame): DataFrame containing admissions data. The charlson diagnoses should be precomputed and included.
+            icu_stays_df (pd.DataFrame): DataFrame containing ICU stays data.
+            patients_df (pd.DataFrame): DataFrame containing patients data.
+            prescriptions_df (pd.DataFrame): DataFrame containing prescriptions data.
+            procedures_df (pd.DataFrame): DataFrame containing procedures data.
+            one_hot_encoder_filepath (str): Path to the pre-fitted OneHotEncoder for categorical feature encoding.
+            scaler (Optional[StandardScaler]): Pre-fitted StandardScaler for feature scaling.
+            **kwargs: Additional arguments for feature extraction.
+        Returns:
+            pd.DataFrame: Preprocessed DataFrame ready for inference.
+        """
+        df = FeatureExtractorMIMIC.build_features(
+            admissions_df=admissions_df,
+            icu_stays_df=icu_stays_df,
+            prescriptions_df=prescriptions_df,
+            procedures_df=procedures_df,
+            patients_metadata_df=patients_df,
+        )
         df = self._clip_features(df)
         df = self._add_log_cols(df)
-        
+
         df = remap_discharge_location(df)
         df = remap_mimic_races(df)
-                
+
         config = self.config
         one_hot_encode_cols = config.get("features_to_one_hot_encode", [])
-        one_hot_cols_to_drop = config.get("one_hot_encode_cols_to_drop", [])
+        one_hot_cols_to_drop = config.get("one_hot_cols_to_drop", [])
 
-        df, _ = preprocess_features_to_one_hot_encode(df, one_hot_encode_cols, one_hot_cols_to_drop)
+        df, _ = preprocess_features_to_one_hot_encode(
+            df, one_hot_encode_cols, one_hot_cols_to_drop, encoder_path=one_hot_encoder_filepath, fit_encoder=False
+        )
 
         features_to_scale = config.get("features_to_scale", [])
         features_to_scale = [feat for feat in features_to_scale if feat in df.columns]
@@ -73,7 +104,7 @@ class DataPreprocessorMIMIC:
             df[features_to_scale] = scaler.transform(df[features_to_scale])
 
         return df
-    
+
     def _define_last_events(self, events_df: pd.DataFrame):
         """
         Identify and flag the last event (admission) for each patient, based on readmission history 

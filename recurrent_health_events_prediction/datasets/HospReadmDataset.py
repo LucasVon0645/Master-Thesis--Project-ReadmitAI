@@ -64,6 +64,7 @@ class HospReadmDataset(Dataset):
         self.last_events_only = last_events_only
 
         self.hadm_ids = []  # to be filled with HADM_IDs of samples
+        self.subject_ids = []  # to be filled with SUBJECT_IDs of samples
         self.samples = self._build_sequences()
 
     def _load_dataframe(self) -> pd.DataFrame:
@@ -92,6 +93,7 @@ class HospReadmDataset(Dataset):
         df_sorted = df.sort_values([self.subject_id_col, self.order_col]).reset_index(drop=True)
         
         current_hosp_ids = []
+        subject_ids = []
 
         samples: list[dict] = []
         for subject_id, g in df_sorted.groupby(self.subject_id_col):
@@ -119,7 +121,8 @@ class HospReadmDataset(Dataset):
                 if self.no_elective and admit_types is not None and admit_types.iloc[t - 1] == "ELECTIVE":
                     continue
 
-                current_hosp_ids.append(hosp_id_t)
+                current_hosp_ids.append(int(hosp_id_t))
+                subject_ids.append(int(subject_id))
 
                 # -----------------------
                 # Build PAST sequence (strictly before current t)
@@ -163,6 +166,7 @@ class HospReadmDataset(Dataset):
                 )
 
         self.hadm_ids = current_hosp_ids
+        self.subject_ids = subject_ids
         
         return samples
 

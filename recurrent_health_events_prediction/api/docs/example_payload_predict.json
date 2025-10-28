@@ -1,0 +1,206 @@
+{
+  "patients": [
+    {
+      "SUBJECT_ID": 773,
+      "GENDER": "M",
+      "DOB": "2051-06-10"
+    },
+    {
+      "SUBJECT_ID": 222,
+      "GENDER": "F",
+      "DOB": "2073-07-25"
+    }
+  ],
+  "admissions": [
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "ADMITTIME": "2103-07-19 21:18:00",
+      "DISCHTIME": "2103-08-12 08:08:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Private",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "REHAB/DISTINCT PART HOSP"
+    },
+    {
+      "HADM_ID": 183287,
+      "SUBJECT_ID": 773,
+      "ADMITTIME": "2108-12-25 23:57:00",
+      "DISCHTIME": "2108-12-29 15:05:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Private",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME"
+    },
+    {
+      "HADM_ID": 160425,
+      "SUBJECT_ID": 773,
+      "ADMITTIME": "2109-01-23 21:51:00",
+      "DISCHTIME": "2109-01-28 17:00:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Private",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME"
+    },
+    {
+      "HADM_ID": 900001,
+      "SUBJECT_ID": 222,
+      "ADMITTIME": "2150-01-10 10:15:00",
+      "DISCHTIME": "2150-01-12 14:30:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Medicare",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME"
+    },
+    {
+      "HADM_ID": 900002,
+      "SUBJECT_ID": 222,
+      "ADMITTIME": "2150-03-05 08:40:00",
+      "DISCHTIME": "2150-03-08 11:10:00",
+      "ADMISSION_TYPE": "ELECTIVE",
+      "INSURANCE": "Medicare",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME"
+    }
+  ],
+  "diagnoses": [
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "4019"
+    },
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "5849"
+    },
+    {
+      "HADM_ID": 183287,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "4280"
+    },
+    {
+      "HADM_ID": 160425,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "42731"
+    },
+    {
+      "HADM_ID": 900001,
+      "SUBJECT_ID": 222,
+      "ICD9_CODE": "4019"
+    },
+    {
+      "HADM_ID": 900002,
+      "SUBJECT_ID": 222,
+      "ICD9_CODE": "56212"
+    }
+  ],
+  "icu_stays": [
+    {
+      "SUBJECT_ID": 773,
+      "HADM_ID": 171563,
+      "INTIME": "2103-07-19 21:19:00",
+      "OUTTIME": "2103-08-03 20:14:00"
+    },
+    {
+      "SUBJECT_ID": 773,
+      "HADM_ID": 183287,
+      "INTIME": "2108-12-25 23:58:19",
+      "OUTTIME": "2108-12-28 15:47:56"
+    },
+    {
+      "SUBJECT_ID": 773,
+      "HADM_ID": 160425,
+      "INTIME": "2109-01-23 23:16:31",
+      "OUTTIME": "2109-01-25 13:45:54"
+    },
+    {
+      "SUBJECT_ID": 222,
+      "HADM_ID": 900001,
+      "INTIME": "2150-01-10 12:00:00",
+      "OUTTIME": "2150-01-11 09:00:00"
+    },
+    {
+      "SUBJECT_ID": 222,
+      "HADM_ID": 900002,
+      "INTIME": "2150-03-05 12:00:00",
+      "OUTTIME": "2150-03-06 10:00:00"
+    }
+  ],
+  "procedures": [
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "3893"
+    },
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "3324"
+    },
+    {
+      "HADM_ID": 183287,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "9904"
+    },
+    {
+      "HADM_ID": 160425,
+      "SUBJECT_ID": 773,
+      "ICD9_CODE": "3893"
+    },
+    {
+      "HADM_ID": 900001,
+      "SUBJECT_ID": 222,
+      "ICD9_CODE": "3950"
+    },
+    {
+      "HADM_ID": 900002,
+      "SUBJECT_ID": 222,
+      "ICD9_CODE": "3893"
+    }
+  ],
+  "prescriptions": [
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "DRUG": "Furosemide"
+    },
+    {
+      "HADM_ID": 171563,
+      "SUBJECT_ID": 773,
+      "DRUG": "Aspirin"
+    },
+    {
+      "HADM_ID": 183287,
+      "SUBJECT_ID": 773,
+      "DRUG": "Warfarin"
+    },
+    {
+      "HADM_ID": 160425,
+      "SUBJECT_ID": 773,
+      "DRUG": "Spironolactone"
+    },
+    {
+      "HADM_ID": 900001,
+      "SUBJECT_ID": 222,
+      "DRUG": "Aspirin EC"
+    },
+    {
+      "HADM_ID": 900002,
+      "SUBJECT_ID": 222,
+      "DRUG": "Metoprolol Tartrate"
+    }
+  ],
+  "targets": [
+    {
+      "SUBJECT_ID": 773,
+      "HADM_ID": 160425,
+      "READMISSION_30_DAYS": 1
+    },
+    {
+      "SUBJECT_ID": 222,
+      "HADM_ID": 900002,
+      "READMISSION_30_DAYS": 0
+    }
+  ]
+}

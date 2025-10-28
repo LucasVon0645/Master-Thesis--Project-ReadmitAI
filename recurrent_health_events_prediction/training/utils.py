@@ -3,19 +3,21 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from plotly import graph_objects as go
+import plotly.express as px
 import seaborn as sns
 from sklearn.calibration import calibration_curve
 from sklearn.inspection import permutation_importance
 import shap
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, List
 from pathlib import Path
 from sklearn.model_selection import StratifiedShuffleSplit, ShuffleSplit
-from sklearn.preprocessing import StandardScaler
-from plotly import graph_objects as go
-import plotly.express as px
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.metrics import ConfusionMatrixDisplay
-from scipy.optimize import minimize_scalar
 from sklearn.metrics import f1_score
+
+from scipy.optimize import minimize_scalar
+
 
 def summarize_search_results(search_cv, print_results: bool = True, model_name: str = "Model"):
     """
@@ -137,27 +139,60 @@ def plot_model_shap_feature_importance(model, X, title = "SHAP Feature Importanc
     plt.close()  # Close the plot to avoid display in Jupyter notebooks
     return fig
 
-def one_hot_encode_feature(df: pd.DataFrame, features: list[str], suffix: Optional[str] = None, drop_first: bool = True) -> tuple[pd.DataFrame, list[str]]:
+def one_hot_encode_feature(
+    df: pd.DataFrame,
+    features: List[str],
+    suffix: Optional[str] = None,
+    drop_first: bool = True,
+    encoder_path: Optional[str] = None,
+    fit_encoder: bool = True
+) -> Tuple[pd.DataFrame, List[str]]:
     """
-    One-hot encodes specified features in a DataFrame.
+    One-hot encodes specified features in a DataFrame using sklearn's OneHotEncoder.
+    If encoder_path is provided, it will save or load the encoder from that path.
 
     Args:
         df (pd.DataFrame): The DataFrame containing the features to encode.
         features (list[str]): List of feature names to one-hot encode.
+        suffix (Optional[str]): Optional suffix for column names.
+        drop_first (bool): Whether to drop the first category (avoid multicollinearity).
+        encoder_path (Optional[str]): If provided, saves or loads the encoder.
+        fit_encoder (bool): If True, fit and optionally save encoder; 
+                            if False, load existing encoder for transform.
 
     Returns:
         pd.DataFrame: The DataFrame with one-hot encoded features.
-        list: List of new columns created by one-hot encoding.
+        list[str]: List of new columns created by one-hot encoding.
     """
-    prev_cols = df.columns.tolist()
-    df = pd.get_dummies(df, columns=features, drop_first=drop_first)
+
     if suffix is None:
         suffix = ""
-    df.columns = [(col + suffix).upper().replace(" ", "_") for col in df.columns]
-    final_cols = df.columns.tolist()
-    new_cols = set(final_cols) - set(prev_cols)
 
-    return df, list(new_cols)
+    # Either fit or load encoder
+    if encoder_path and not fit_encoder and os.path.exists(encoder_path):
+        encoder = joblib.load(encoder_path)
+    else:
+        encoder = OneHotEncoder(drop='first' if drop_first else None,
+                                sparse_output=False,
+                                handle_unknown='ignore')
+        encoder.fit(df[features])
+        if encoder_path:
+            joblib.dump(encoder, encoder_path)
+
+    # Apply transformation
+    encoded_array = encoder.transform(df[features])
+    encoded_cols = encoder.get_feature_names_out(features)
+    encoded_df = pd.DataFrame(encoded_array, columns=encoded_cols, index=df.index)
+
+    # Merge back to original
+    df = df.drop(columns=features)
+    df = pd.concat([df, encoded_df], axis=1)
+
+    # Apply naming convention
+    df.columns = [(col + suffix).upper().replace(" ", "_") for col in df.columns]
+
+    return df, [col for col in df.columns if any(f.upper() in col for f in features)]
+
 
 def compare_dataframes(df1, df2, key_columns=None):
     """
@@ -208,6 +243,8 @@ def preprocess_features_to_one_hot_encode(
     df: pd.DataFrame,
     features_to_encode: list,
     one_hot_cols_to_drop: Optional[list] = None,
+    encoder_path: Optional[str] = None,
+    fit_encoder: bool = True
 ):
     """
     Preprocess features to encode and drop specified values.
@@ -215,7 +252,9 @@ def preprocess_features_to_one_hot_encode(
     Args:
         df (pd.DataFrame): DataFrame containing features.
         features_to_encode (list): List of features to one-hot encode.
-        values_to_drop (list, optional): Values to drop from the DataFrame.
+        one_hot_cols_to_drop (list, optional): Columns to drop from the DataFrame.
+        encoder_path (str, optional): Path to save/load the OneHotEncoder.
+        fit_encoder (bool): Whether to fit and save the encoder or load an existing one.
 
     Returns:
         pd.DataFrame: Preprocessed DataFrame with one-hot encoded features.
@@ -225,7 +264,13 @@ def preprocess_features_to_one_hot_encode(
     else:
         drop_first = True
 
-    df, new_cols = one_hot_encode_feature(df, features_to_encode, drop_first=drop_first)
+    df, new_cols = one_hot_encode_feature(
+        df,
+        features_to_encode,
+        drop_first=drop_first,
+        encoder_path=encoder_path,
+        fit_encoder=fit_encoder,
+    )
 
     if one_hot_cols_to_drop is not None:
         for col in new_cols:

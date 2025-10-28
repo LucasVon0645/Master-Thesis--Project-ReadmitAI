@@ -1,0 +1,60 @@
+{
+  "200": {
+    "description": "Successful prediction",
+    "content": {
+      "application/json": {
+        "example": {
+          "predictions": [
+            {
+              "pred_probs": [0.12, 0.87, 0.45],
+              "pred_labels": [0, 1, 0],
+              "true_labels": [1, 1, 0],
+              "attention_weights": [
+                [0.1, 0.2, 0.7],
+                [0.4, 0.4, 0.2],
+                [0.3, 0.6, 0.1]
+              ],
+              "hadm_ids": [188038, 137006, 145243],
+              "subject_ids": [222, 223, 224]
+            }
+          ],
+          "metadata": {
+            "model_name": "readmission-predictor-v1",
+            "number_of_predictions": 3,
+            "timestamp": "2025-10-28T10:15:00Z"
+          },
+          "metrics": {
+            "auroc": 0.92,
+            "confusion_matrix": [
+              [50, 5],
+              [3, 42]
+            ],
+            "recall": 0.93,
+            "accuracy": 0.91,
+            "precision": 0.89
+          }
+        }
+      }
+    }
+  },
+  "422": {
+    "description": "Validation error. Missing or invalid fields",
+    "content": {
+      "application/json": {
+        "example": {
+          "detail": "Missing required table 'patients' or invalid schema."
+        }
+      }
+    }
+  },
+  "500": {
+    "description": "Internal server error. Prediction failure",
+    "content": {
+      "application/json": {
+        "example": {
+          "detail": "Prediction failed: model file not found"
+        }
+      }
+    }
+  }
+}
