@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from recurrent_health_events_prediction.api.routes.predict import router as predict_router
+from api.routes.predict import router as predict_router
 
 app = FastAPI(
     title="Hospital Readmission Prediction API",

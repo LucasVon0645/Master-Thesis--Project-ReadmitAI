@@ -3,9 +3,9 @@ from functools import lru_cache
 from typing import Any, Dict, List
 from fastapi import APIRouter, Depends, HTTPException, Body
 
-from recurrent_health_events_prediction.api.routes.utils import _to_dict_list
-from recurrent_health_events_prediction.api.schemas import BatchPayload, PredictionEnvelope
-from recurrent_health_events_prediction.api.services.prediction import ModelPrediction
+from api.routes.utils import _to_dict_list
+from api.schemas import BatchPayload, PredictionEnvelope
+from api.services.prediction import ModelPrediction
 from pathlib import Path
 
 # ----------------------- load payload examples -----------------------
