@@ -12,3 +12,5 @@ _models
 *.pyc
 *.pkl
 *.csv
+# streamlit local state
+.streamlit/secrets.toml
