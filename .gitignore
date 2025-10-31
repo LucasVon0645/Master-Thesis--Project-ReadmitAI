@@ -1,6 +1,6 @@
 data
 .venv
-.vscode
+.vscode/settings.json
 .neptune-token
 .DS_Store
 .neptune
