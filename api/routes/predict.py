@@ -58,6 +58,7 @@ def predict(
         rows_dict: Dict[str, List[Dict[str, Any]]] = {k: _to_dict_list(getattr(payload, k, [])) for k in keys_payload}
 
         result = svc.predict(rows_dict)  # returns the envelope dict
+        
         return result  # FastAPI will validate/serialize to PredictionEnvelope
 
     except FileNotFoundError as e:

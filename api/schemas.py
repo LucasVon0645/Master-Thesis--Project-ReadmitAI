@@ -115,6 +115,7 @@ class PredictionMetrics(BaseModel):
     recall: Optional[float] = None
     f1_score: Optional[float] = None
     auc_roc: Optional[float] = None
+    confusion_matrix: Optional[List[List[int]]] = None
 
 class PredictionEnvelope(BaseModel):
     prediction: PredictionBody

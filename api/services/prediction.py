@@ -8,6 +8,7 @@ from sklearn.metrics import (
     recall_score,
     accuracy_score,
     roc_auc_score,
+    f1_score
 )
 import yaml
 import pandas as pd
@@ -402,6 +403,7 @@ class ModelPrediction:
             recall = recall_score(true_labels, pred_labels)
             accuracy = accuracy_score(true_labels, pred_labels)
             precision = precision_score(true_labels, pred_labels)
+            f1 = f1_score(true_labels, pred_labels)
         else:
             auroc = None
             conf_matrix = None
@@ -410,11 +412,12 @@ class ModelPrediction:
             precision = None
 
         metrics = {
-            "auroc": auroc,
+            "auc_roc": auroc,
             "confusion_matrix": conf_matrix,
             "recall": recall,
             "accuracy": accuracy,
             "precision": precision,
+            "f1_score": f1,
         }
 
         return {"prediction": pred_results, "metadata": metadata, "metrics": metrics}
