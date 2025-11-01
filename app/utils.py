@@ -1,9 +1,174 @@
 from __future__ import annotations
 import pandas as pd
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple, Optional
 import plotly.express as px
 import numpy as np
 import plotly.graph_objects as go
+
+def sidebar_file_uploads(st) -> Tuple[Dict[str, Any], Dict[str, bool]]:
+    st.sidebar.header("Upload CSVs 📂")
+
+    st.sidebar.subheader("Admissions File 🚑")
+    admission_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, ADMITTIME, DISCHTIME, ADMISSION_TYPE, INSURANCE, ETHNICITY, DISCHARGE_LOCATION",
+        type=["csv"],
+        help="Should contain admission records for each patient.",
+        accept_multiple_files=False,
+    )
+
+    st.sidebar.subheader("Diagnoses File 🩺")
+    diagnoses_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, ICD9_CODE",
+        type=["csv"],
+        help="Should contain ICD diagnosis codes linked to each admission.",
+        accept_multiple_files=False,
+    )
+
+    st.sidebar.subheader("ICU Stays File 🛏️")
+    icu_stays_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, INTIME, OUTTIME",
+        type=["csv"],
+        help="Should contain ICU stay records linked to each admission.",
+        accept_multiple_files=False,
+    )
+
+    st.sidebar.subheader("Patients File 🤒")
+    patients_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, DOB, GENDER",
+        type=["csv"],
+        help="Should contain patient demographic information.",
+        accept_multiple_files=False,
+    )
+
+    st.sidebar.subheader("Prescriptions File 💊")
+    prescriptions_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, DRUG",
+        type=["csv"],
+        help="Should contain prescription records linked to each admission.",
+        accept_multiple_files=False,
+    )
+
+    st.sidebar.subheader("Procedures File 💉")
+    procedures_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, ICD9_CODE",
+        type=["csv"],
+        help="Should contain procedure records linked to each admission.",
+        accept_multiple_files=False,
+    )
+
+    st.sidebar.subheader("True Targets File (optional) 🎯")
+    targets_file = st.sidebar.file_uploader(
+        "Required: SUBJECT_ID, HADM_ID, READMISSION_30_DAYS",
+        type=["csv"],
+        help="Should contain true readmission outcomes for evaluation.",
+        accept_multiple_files=False,
+    )
+    
+    st.sidebar.caption("After uploading CSVs, click **Run predictions** to call the API.")
+
+    uploaded_files = all([
+        admission_file,
+        diagnoses_file,
+        icu_stays_file,
+        patients_file,
+        procedures_file,
+        prescriptions_file,
+    ])
+    
+    files = dict([
+        ("admission_file", admission_file),
+        ("diagnoses_file", diagnoses_file),
+        ("icu_stays_file", icu_stays_file),
+        ("patients_file", patients_file),
+        ("procedures_file", procedures_file),
+        ("prescriptions_file", prescriptions_file),
+        ("targets_file", targets_file),
+    ])
+    
+    return files, uploaded_files
+
+def initialize_session_state_vars(session_state):
+    if "admissions_df" not in session_state:
+        session_state.admissions_df = pd.DataFrame()
+    if "diagnoses_df" not in session_state:
+        session_state.diagnoses_df = pd.DataFrame()
+    if "icu_stays_df" not in session_state:
+        session_state.icu_stays_df = pd.DataFrame()
+    if "patients_df" not in session_state:
+        session_state.patients_df = pd.DataFrame()
+    if "procedures_df" not in session_state:
+        session_state.procedures_df = pd.DataFrame()
+    if "prescriptions_df" not in session_state:
+        session_state.prescriptions_df = pd.DataFrame()
+    if "targets_df" not in session_state:
+        session_state.targets_df = None
+    if "all_predictions_df" not in session_state:
+        session_state.all_predictions_df = pd.DataFrame()
+    if "metrics_available" not in session_state:
+        session_state.metrics_available = False
+    if "metrics_dict" not in session_state:
+        session_state.metrics_dict = {}
+    if "metadata_dict" not in session_state:
+        session_state.metadata_dict = {}
+
+def populate_session_state_from_files(files: Dict[str, Any], st_obj) -> None:
+    """Read uploaded CSV files and populate Streamlit `session_state`.
+
+    Parameters
+    - files: dict with keys "admission_file", "diagnoses_file", "icu_stays_file",
+      "patients_file", "procedures_file", "prescriptions_file", "targets_file".
+      Values are the uploaded file-like objects returned by Streamlit's
+      `file_uploader`.
+    - st_obj: the `streamlit` module (or an object exposing `session_state`).
+
+    This function is intentionally idempotent: it only overwrites session state
+    entries when an uploaded file is provided for the corresponding key.
+    """
+    # admissions_file
+    admissions = files.get("admission_file")
+    if admissions:
+        st_obj.session_state.__setitem__("admissions_df", read_csv_to_dataframe(admissions))
+
+    diagnoses = files.get("diagnoses_file")
+    if diagnoses:
+        st_obj.session_state.__setitem__("diagnoses_df", read_csv_to_dataframe(diagnoses))
+    else:
+        st_obj.session_state.__setitem__("diagnoses_df", pd.DataFrame())
+
+    # icu_stays_file
+    icu_stays = files.get("icu_stays_file")
+    if icu_stays:
+        st_obj.session_state.__setitem__("icu_stays_df", read_csv_to_dataframe(icu_stays))
+    else:
+        st_obj.session_state.__setitem__("icu_stays_df", pd.DataFrame())
+
+    # patients_file
+    patients = files.get("patients_file")
+    if patients:
+        st_obj.session_state.__setitem__("patients_df", read_csv_to_dataframe(patients))
+    else:
+        st_obj.session_state.__setitem__("patients_df", pd.DataFrame())
+
+    # procedures_file
+    procedures = files.get("procedures_file")
+    if procedures:
+        st_obj.session_state.__setitem__("procedures_df", read_csv_to_dataframe(procedures))
+    else:
+        st_obj.session_state.__setitem__("procedures_df", pd.DataFrame())
+
+    # prescriptions_file
+    prescriptions = files.get("prescriptions_file")
+    if prescriptions:
+        st_obj.session_state.__setitem__("prescriptions_df", read_csv_to_dataframe(prescriptions))
+    else:
+        st_obj.session_state.__setitem__("prescriptions_df", pd.DataFrame())
+
+    # targets_file is optional
+    targets = files.get("targets_file")
+    if targets:
+        st_obj.session_state.__setitem__("targets_df", read_csv_to_dataframe(targets))
+    else:
+        st_obj.session_state.__setitem__("targets_df", None)
 
 def read_csv_to_dataframe(file) -> pd.DataFrame:
     df = pd.read_csv(file)
@@ -99,3 +264,114 @@ def format_percentage(x):
         return "—"
     # show as percentage with one decimal
     return f"{x*100:.1f}%" if 0 <= x <= 1 else f"{x:.3f}"
+
+def select_patient_data(
+    subject_id: int,
+    st
+) -> Dict[str, pd.DataFrame]:
+    
+    admissions_df: pd.DataFrame = st.session_state.admissions_df
+    diagnoses_df: pd.DataFrame = st.session_state.diagnoses_df
+    icu_stays_df: pd.DataFrame = st.session_state.icu_stays_df
+    procedures_df: pd.DataFrame = st.session_state.procedures_df
+    prescriptions_df: pd.DataFrame = st.session_state.prescriptions_df
+    targets_df: Optional[pd.DataFrame] = st.session_state.targets_df
+    patients_df: pd.DataFrame = st.session_state.patients_df
+
+    admissions_single_patient_df = admissions_df[
+        (admissions_df["SUBJECT_ID"] == subject_id)
+    ]
+    diagnoses_single_patient_df = diagnoses_df[
+        (diagnoses_df["SUBJECT_ID"] == subject_id)
+    ]
+    icu_stays_single_patient_df = icu_stays_df[
+        (icu_stays_df["SUBJECT_ID"] == subject_id)
+    ]
+    patients_df = patients_df[
+        (patients_df["SUBJECT_ID"] == subject_id)
+    ]
+    procedures_single_patient_df = procedures_df[
+        (procedures_df["SUBJECT_ID"] == subject_id)
+    ]
+    prescriptions_single_patient_df = prescriptions_df[
+        (prescriptions_df["SUBJECT_ID"] == subject_id)
+    ]
+    if targets_df is not None:
+        targets_single_patient_df = targets_df[
+            (targets_df["SUBJECT_ID"] == subject_id)
+        ]
+    else:
+        targets_single_patient_df = None
+        
+    results_dict = {
+        "admissions_df": admissions_single_patient_df,
+        "diagnoses_df": diagnoses_single_patient_df,
+        "icu_stays_df": icu_stays_single_patient_df,
+        "procedures_df": procedures_single_patient_df,
+        "prescriptions_df": prescriptions_single_patient_df,
+        "targets_df": targets_single_patient_df,
+        "patients_df": patients_df,
+    }
+
+    return results_dict
+
+def make_attention_fig(attention_weights, hadm_ids, kind="line"):
+    """
+    Plot attention weights across the last n admissions.
+    
+    Parameters
+    ----------
+    attention_weights : list[float]
+        Attention values (length = n). Index 1 corresponds to the earliest
+        admission within the observation window.
+    hadm_ids : list[str|int]
+        All admission IDs. The last n are used, aligned to attention_weights.
+    kind : {"bar","line"}
+        Choose a bar chart or a line chart with markers.
+    """
+    attention_weights = list(filter(lambda w: w > 0, attention_weights))
+    n = len(attention_weights)
+    if n == 0:
+        raise ValueError("attention_weights is empty.")
+    if len(hadm_ids) < n:
+        raise ValueError("hadm_ids must be at least as long as attention_weights.")
+    
+    # Take the last n admissions and align with the attention weights
+    hadm_subset = hadm_ids[-n:]
+    x_idx = list(range(1, n + 1))  # 1-based indexing on the x-axis
+
+    if kind == "line":
+        trace = go.Scatter(
+            x=x_idx, y=attention_weights, mode="lines+markers",
+            customdata=np.array(hadm_subset),
+            hovertemplate=(
+                "Admission index: %{x}<br>"
+                "HADM_ID: %{customdata}<br>"
+                "Attention: %{y:.2f}<extra></extra>"
+            ),
+        )
+    else:  # "bar"
+        trace = go.Bar(
+            x=x_idx, y=attention_weights,
+            customdata=np.array(hadm_subset),
+            hovertemplate=(
+                "Admission index: %{x}<br>"
+                "HADM_ID: %{customdata}<br>"
+                "Attention: %{y:.2}<extra></extra>"
+            ),
+        )
+
+    fig = go.Figure(trace)
+    fig.update_layout(
+        title="Attention over the last admissions",
+        xaxis=dict(
+            title=f"Admission index within observation window "
+                  f"(1 = first of the last {n} admissions)",
+            dtick=1,          # show only integer ticks (… 1, 2, 3, …)
+            tick0=1,          # start ticks at 1
+            range=[0.5, n + 0.5],  # centers bars/points on integer positions
+        ),
+        yaxis=dict(title="Attention weight"),
+        margin=dict(l=60, r=20, t=50, b=70),
+    )
+    return fig

@@ -100,6 +100,7 @@ training_data:
       - "DISCHARGE_LOCATION_OTHERS"
     patient_id_col: "SUBJECT_ID"
     time_col: "ADMITTIME"
+    discharge_time_col: "DISCHTIME"
     next_admt_type_col: "NEXT_ADMISSION_TYPE"
     hosp_id_col: "HADM_ID"
     no_elective: true
