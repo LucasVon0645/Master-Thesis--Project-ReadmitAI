@@ -432,6 +432,8 @@ def one_hot_encode(
     encoded_array = encoder.transform(df[features])
     encoded_cols = encoder.get_feature_names_out(features)
     encoded_df = pd.DataFrame(encoded_array, columns=encoded_cols, index=df.index)
+    for col in encoded_df.columns:
+        encoded_df[col] = encoded_df[col].astype(bool)  # Convert to int for binary columns
 
     # Merge back to original
     df = df.drop(columns=features)

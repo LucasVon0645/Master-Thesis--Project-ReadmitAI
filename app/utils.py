@@ -4,6 +4,9 @@ from typing import Any, Dict, List, Tuple, Optional
 import plotly.express as px
 import numpy as np
 import plotly.graph_objects as go
+import json
+import math
+import streamlit as st
 
 def sidebar_file_uploads(st) -> Tuple[Dict[str, Any], Dict[str, bool]]:
     st.sidebar.header("Upload CSVs 📂")
@@ -174,20 +177,40 @@ def read_csv_to_dataframe(file) -> pd.DataFrame:
     df = pd.read_csv(file)
     return df
 
-def build_predictions_dataframe(predictions: List[Dict[str, Any]]) -> pd.DataFrame:
+def build_predictions_dataframe(predictions: Dict[str, Any]) -> pd.DataFrame:
     if not predictions:
-        return pd.DataFrame(columns=["SUBJECT_ID", "HADM_ID", "Readmission Probability"])
-    else:
-        data_dict = {
-                "SUBJECT_ID": predictions["subject_ids"],
-                "HADM_ID": predictions["hadm_ids"],
-                "Readmission Prob.": predictions["pred_probs"],
-            }
-        if predictions.get("true_labels") is not None:
-            true_labels: list = predictions["true_labels"]
+        return pd.DataFrame(columns=[
+            "SUBJECT_ID", "HADM_ID", "Readmission Prob.", "Percentile", "Rank"
+        ])
 
-            data_dict["True Outcome"] = list(map(lambda x: "Readmitted" if x == 1 else "Not Readmitted", true_labels))
-        return pd.DataFrame(data_dict)
+    # Base dictionary
+    data_dict = {
+        "SUBJECT_ID": predictions["subject_ids"],
+        "HADM_ID": predictions["hadm_ids"],
+        "Readmission Prob.": predictions["pred_probs"],
+    }
+
+    # Optional true label mapping
+    if predictions.get("true_labels") is not None:
+        true_labels: list = predictions["true_labels"]
+        data_dict["True Outcome"] = [
+            "Readmitted" if x == 1 else "Not Readmitted" for x in true_labels
+        ]
+
+    df = pd.DataFrame(data_dict)
+
+    # --- New columns ---
+    # Rank: 1 = highest risk
+    df["Rank"] = df["Readmission Prob."].rank(ascending=False, method="min").astype(int)
+
+    # Percentile: relative position (higher = riskier)
+    df["Percentile"] = df["Readmission Prob."].rank(pct=True, ascending=True) * 100
+    df["Percentile"] = df["Percentile"].round(1)
+
+    # Sort by probability descending for readability
+    df = df.sort_values(by="Readmission Prob.", ascending=False).reset_index(drop=True)
+
+    return df
 
 def summarize_predictions(df: pd.DataFrame) -> Dict[str, Any]:
     n_patients = df["SUBJECT_ID"].nunique()
@@ -375,3 +398,67 @@ def make_attention_fig(attention_weights, hadm_ids, kind="line"):
         margin=dict(l=60, r=20, t=50, b=70),
     )
     return fig
+
+def _pretty_key(k: str) -> str:
+    s = str(k).replace("_", " ").strip()
+    return s[:1].upper() + s[1:]
+
+def _cell_value(v):
+    if v is None:
+        return "—"
+    if isinstance(v, (dict, list, tuple)):
+        # compact JSON for nested structures
+        try:
+            return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+        except Exception:
+            return str(v)
+    return v
+
+def show_kv_two_dfs(
+    data: dict,
+    *,
+    title: str | None = "Current Hospital Admission",
+    order: list[str] | None = None,
+    n_cols: int = 3,
+):
+    """
+    Render a dict as 'Variable / Value' rows split across n side-by-side tables.
+    - Keeps Streamlit look (st.dataframe), no code blocks.
+    - Evenly splits rows; left gets the extra if odd.
+    - Optional 'order' list to prioritize certain keys first.
+    """
+    if not data:
+        st.info("No features available.")
+        return
+
+    # Optional ordering of keys (e.g., to surface vitals first)
+    items = list(data.items())
+    if order:
+        order_rank = {k: i for i, k in enumerate(order)}
+        items.sort(key=lambda kv: (order_rank.get(kv[0], float("inf")), str(kv[0]).lower()))
+
+    rows = [{"Variable": _pretty_key(k), "Value": _cell_value(v)} for k, v in items]
+    df = pd.DataFrame(rows)
+
+    if title:
+        st.markdown(f"##### {title}")
+
+    # Split evenly across columns
+    n = len(df)
+    per_col = math.ceil(n / n_cols)
+    cols = st.columns(n_cols, gap="small")
+
+    for i, col in enumerate(cols):
+        start = i * per_col
+        end = min((i + 1) * per_col, n)
+        sub = df.iloc[start:end].reset_index(drop=True)
+        with col:
+            st.dataframe(
+                sub,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Variable": st.column_config.TextColumn("Variable", width="medium"),
+                    "Value": st.column_config.TextColumn("Value", width="large"),
+                },
+            )
