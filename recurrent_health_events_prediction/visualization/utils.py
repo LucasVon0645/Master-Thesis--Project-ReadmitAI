@@ -162,6 +162,8 @@ def plot_subject_evolution(df, subject_id,
                            textposition='outside', extend_time_horizon_by=365, show: bool = False):
     # Filter for the patient
     patient_df = df[df['SUBJECT_ID'] == subject_id].copy()
+    patient_df['ADMITTIME'] = pd.to_datetime(patient_df['ADMITTIME'])
+    patient_df['DISCHTIME'] = pd.to_datetime(patient_df['DISCHTIME'])
     patient_df = patient_df.sort_values('ADMITTIME')
 
     # Features to track over time (excluding ID/time columns)
@@ -175,7 +177,7 @@ def plot_subject_evolution(df, subject_id,
 
     # Melt the data so each feature is a row
     melted = patient_df.melt(
-        id_vars=['ADMITTIME', 'ADMISSION_TYPE', 'DISCHTIME'],
+        id_vars=['ADMITTIME', 'DISCHTIME', 'HADM_ID'],
         value_vars=features_to_plot,
         var_name='Feature',
         value_name='Value'
@@ -184,32 +186,28 @@ def plot_subject_evolution(df, subject_id,
     # Convert all values to string for display
     melted['Value'] = melted['Value'].apply(format_feature_value)
 
-    # Define colors for admission types
-    color_discrete_map = {
-        "URGENT": "red",
-        "EMERGENCY": "orange",
-        "ELECTIVE": "green"
-    }
-
     # Create the plot
     fig = px.timeline(
         melted,
         x_start='ADMITTIME',
         x_end='DISCHTIME',
         y='Feature',
-        color='ADMISSION_TYPE',
         text='Value',
         title=f'Evolution of SUBJECT_ID {subject_id}',
-        color_discrete_map=color_discrete_map
     )
     fig.update_traces(textposition=textposition, textfont_size=10)
     # Adjust layout to avoid text being cut off
     fig.update_layout(
         height=600,
-        yaxis_title='Feature',
-        xaxis_title='Time',
+        yaxis_title="Feature",
+        xaxis_title="Time",
         margin=dict(l=100, r=100, t=50, b=50),
-        xaxis=dict(range=[melted['ADMITTIME'].min() - pd.Timedelta(days=100), melted['DISCHTIME'].max() + pd.Timedelta(days=extend_time_horizon_by)])
+        xaxis=dict(
+            range=[
+                melted["ADMITTIME"].min() - pd.Timedelta(days=100),
+                melted["DISCHTIME"].max() + pd.Timedelta(days=extend_time_horizon_by),
+            ]
+        ),
     )
 
     if save_html_file_path:

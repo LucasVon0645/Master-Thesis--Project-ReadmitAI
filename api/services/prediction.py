@@ -1,5 +1,5 @@
 from importlib import import_module, resources as impresources
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Tuple, Optional
 
 import joblib
 from sklearn.metrics import (
@@ -8,14 +8,14 @@ from sklearn.metrics import (
     recall_score,
     accuracy_score,
     roc_auc_score,
-    f1_score
+    f1_score,
 )
 import yaml
 import pandas as pd
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from recurrent_health_events_prediction import configs
 from recurrent_health_events_prediction.data_extraction.utils import (
@@ -26,6 +26,9 @@ from recurrent_health_events_prediction.datasets.HospReadmDataset import (
 )
 from recurrent_health_events_prediction.preprocessing.preprocessors import (
     DataPreprocessorMIMIC,
+)
+from recurrent_health_events_prediction.preprocessing.utils import (
+    one_hot_encode_and_drop,
 )
 from recurrent_health_events_prediction.utils.general_utils import import_yaml_config
 
@@ -60,13 +63,16 @@ class ModelPrediction:
         self.scaler_filepath = self.api_config["scaler_filepath"]
         self._scaler: Optional[StandardScaler] = None
 
-        self.one_hot_encoder_filepath = self.api_config.get("one_hot_encoder_filepath", None)
+        self.one_hot_encoder_filepath = self.api_config.get(
+            "one_hot_encoder_filepath", None
+        )
+        self._one_hot_encoder = None
+
+        self.unscaled_feat_df = None
 
         # Required columns (keys should match incoming payload)
         # Expecting: admissions_diagnoses, icu_stays, procedures, prescriptions, patients
-        self.required_cols: Dict[str, List[str]] = self.api_config[
-            "required_cols"
-        ]
+        self.required_cols: Dict[str, List[str]] = self.api_config["required_cols"]
 
         # Column names for IDs and time (used by dataset)
         self.patient_id_col: str = self.preprocessing_config.get(
@@ -74,6 +80,12 @@ class ModelPrediction:
         )
         self.hosp_id_col: str = self.preprocessing_config.get("hosp_id_col", "HADM_ID")
         self.time_col: str = self.preprocessing_config.get("time_col", "ADMITTIME")
+        self.discharge_time_col: str = self.preprocessing_config.get(
+            "discharge_time_col", "DISCHTIME"
+        )
+        self.target_col: str = self.preprocessing_config.get(
+            "binary_event_col", "READMISSION_30_DAYS"
+        )
 
         # Fixed CPU-only
         self._device = torch.device("cpu")
@@ -121,7 +133,33 @@ class ModelPrediction:
                 ) from e
         return self._scaler
 
+    @property
+    def one_hot_encoder(self) -> OneHotEncoder:
+        if self._one_hot_encoder is None:
+            try:
+                self._one_hot_encoder = joblib.load(self.one_hot_encoder_filepath)
+            except FileNotFoundError as e:
+                raise FileNotFoundError(
+                    f"One-hot encoder file not found: {self.one_hot_encoder_filepath}"
+                ) from e
+        return self._one_hot_encoder
+
     # ----------------------- helpers -----------------------
+    def _validate_input_data(self, input_data: Dict[str, List[Dict[str, Any]]]) -> None:
+        if not any(
+            input_data.get(k)
+            for k in (
+                "admissions",
+                "diagnoses",
+                "icu_stays",
+                "procedures",
+                "prescriptions",
+                "patients",
+                "targets",
+            )
+        ):
+            raise ValueError("Input data is empty; no tables provided.")
+
     def _to_df(self, rows: Optional[List[Dict[str, Any]]], key: str) -> pd.DataFrame:
         """
         Convert list-of-dict rows to a DataFrame, ensuring required columns exist
@@ -135,7 +173,7 @@ class ModelPrediction:
         if missing:
             raise ValueError(f"{key}: missing required columns: {missing}")
 
-        df = df[self.required_cols[key]].copy()
+        df = df[self.required_cols[key]]
         return df
 
     def _create_pytorch_dataset(
@@ -163,7 +201,37 @@ class ModelPrediction:
         }
         return HospReadmDataset(dataframe=preprocessed_df, **dataset_cfg)
 
-    def _preprocess(
+    def _scale_features(self, df):
+        if self.scaler is None:
+            raise ValueError("Scaler not loaded; cannot scale features.")
+
+        config = self.preprocessing_config
+        features_to_scale = config.get("features_to_scale", [])
+        features_to_scale = [feat for feat in features_to_scale if feat in df.columns]
+
+        df[features_to_scale] = self.scaler.transform(df[features_to_scale])
+
+        return df
+
+    def _one_hot_encode_features(self, df):
+        if self.one_hot_encoder is None:
+            raise ValueError("One-hot encoder not loaded; cannot encode features.")
+
+        config = self.preprocessing_config
+        one_hot_encode_cols = config.get("features_to_one_hot_encode", [])
+        one_hot_cols_to_drop = config.get("one_hot_cols_to_drop", [])
+
+        df, _ = one_hot_encode_and_drop(
+            df,
+            features_to_encode=one_hot_encode_cols,
+            one_hot_cols_to_drop=one_hot_cols_to_drop,
+            encoder=self.one_hot_encoder,
+            fit_encoder=False,
+        )
+
+        return df
+
+    def _get_features_and_target(
         self,
         admissions_df: pd.DataFrame,
         diagnoses_df: pd.DataFrame,
@@ -172,7 +240,7 @@ class ModelPrediction:
         prescriptions_df: pd.DataFrame,
         patients_df: pd.DataFrame,
         targets_df: Optional[pd.DataFrame] = None,
-    ) -> HospReadmDataset:
+    ) -> pd.DataFrame:
         """
         Run your preprocessing pipeline and build the dataset for inference.
         """
@@ -180,7 +248,7 @@ class ModelPrediction:
         admissions_df = admissions_df.merge(
             diagnoses_df[["SUBJECT_ID", "HADM_ID", "ICD9_CODE"]],
             on=["SUBJECT_ID", "HADM_ID"],
-            how="left"
+            how="left",
         )
 
         # Derive Charlson category on admissions (expects ICD9_CODE present)
@@ -189,30 +257,120 @@ class ModelPrediction:
         )
 
         preprocessor = DataPreprocessorMIMIC(self.preprocessing_config)
-        preprocessed_df = preprocessor.preprocess_inference(
+        preprocessed_df = preprocessor.calculate_features_inference(
             admissions_df=admissions_w_charlson,
             icu_stays_df=icu_stays_df,
             patients_df=patients_df,
             prescriptions_df=prescriptions_df,
             procedures_df=procedures_df,
-            one_hot_encoder_filepath=self.one_hot_encoder_filepath,
-            scaler=self.scaler,
         )
-        target_col = self.preprocessing_config["binary_event_col"]
 
         # If targets are provided, merge them in preprocessed_df for latter metrics calculation
         if targets_df is not None:
-            if target_col in preprocessed_df.columns:
-                preprocessed_df = preprocessed_df.drop(columns=[target_col], errors="ignore")
+            if self.target_col in preprocessed_df.columns:
+                preprocessed_df = preprocessed_df.drop(
+                    columns=[self.target_col], errors="ignore"
+                )
             # Merge targets into preprocessed_df on SUBJECT_ID and HADM_ID
             preprocessed_df = preprocessed_df.merge(
-                targets_df,
-                on=["SUBJECT_ID", "HADM_ID"],
-                how="left"
+                targets_df, on=[self.patient_id_col, self.hosp_id_col], how="left"
             )
+        return preprocessed_df
+
+    def _transform_input_data(
+        self,
+        input_data: Dict[str, List[Dict[str, Any]]],
+        save_unscaled_features: bool = False,
+    ) -> Tuple[HospReadmDataset, bool]:
+        """
+        Validate and transform input JSON dicts into a PyTorch Dataset for inference.
+        Returns the dataset and a flag indicating if targets were provided.
+        """
+        admissions_df = self._to_df(input_data.get("admissions"), "admissions")
+        diagnoses_df = self._to_df(input_data.get("diagnoses"), "diagnoses")
+        icu_stays_df = self._to_df(input_data.get("icu_stays"), "icu_stays")
+        procedures_df = self._to_df(input_data.get("procedures"), "procedures")
+        prescriptions_df = self._to_df(input_data.get("prescriptions"), "prescriptions")
+        patients_df = self._to_df(input_data.get("patients"), "patients")
+        targets_df = None
+        target_provided = False
+        if "targets" in input_data and input_data["targets"] is not None:
+            target_provided = True
+            targets_df = self._to_df(input_data["targets"], "targets")
+
+        preprocessed_df = self._get_features_and_target(
+            admissions_df=admissions_df,
+            diagnoses_df=diagnoses_df,
+            icu_stays_df=icu_stays_df,
+            procedures_df=procedures_df,
+            prescriptions_df=prescriptions_df,
+            patients_df=patients_df,
+            targets_df=targets_df,
+        )
+
+        preprocessed_df = self._one_hot_encode_features(preprocessed_df)
+
+        if save_unscaled_features:
+            self.unscaled_feat_df = preprocessed_df.copy()
+
+        preprocessed_df = self._scale_features(preprocessed_df)
 
         dataset = self._create_pytorch_dataset(preprocessed_df)
-        return dataset
+
+        return dataset, target_provided
+
+    def _get_patient_features(
+        self
+    ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
+        df: pd.DataFrame = self.unscaled_feat_df
+        if df is None or df.empty:
+            raise ValueError(
+                "No DataFrame in HospReadmDataset available for patient explanation."
+            )
+
+        # Sort by patient and time
+        df = df.sort_values(by=[self.patient_id_col, self.time_col]).reset_index(
+            drop=True
+        )
+
+        longitudinal_feat_cols = self.model_config["longitudinal_feat_cols"]
+        current_feat_cols = self.model_config["current_feat_cols"]
+
+        hosp_id_col = self.hosp_id_col
+        patient_id_col = self.patient_id_col
+        time_col = self.time_col
+        discharge_time_col = self.discharge_time_col
+
+        additional_cols = [patient_id_col, hosp_id_col, time_col, discharge_time_col]
+
+        current_feat_cols = [col.replace("LOG_", "") for col in current_feat_cols]
+        longitudinal_feat_cols = [col.replace("LOG_", "") for col in longitudinal_feat_cols]
+
+        curr_df: pd.DataFrame = df.iloc[[-1]][additional_cols + current_feat_cols]
+        long_df: pd.DataFrame = df.iloc[0:-1][additional_cols + longitudinal_feat_cols]
+
+        curr_dict = curr_df.to_dict(orient="records")[0]
+        long_list_dict = long_df.to_dict(orient="records")
+
+        return curr_dict, long_list_dict
+
+    def _prepare_prediction_results_dict(
+        self,
+        pred_probs,
+        pred_labels,
+        true_labels,
+        attention_weights,
+        hadm_ids,
+        subject_ids,
+    ):
+        return {
+            "pred_probs": pred_probs,
+            "pred_labels": pred_labels,
+            "true_labels": true_labels,
+            "attention_weights": attention_weights,
+            "hadm_ids": hadm_ids,
+            "subject_ids": subject_ids,
+        }
 
     # ----------------------- public API -----------------------
     def predict(self, input_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
@@ -250,45 +408,9 @@ class ModelPrediction:
             } | null
           }
         """
-        # Quick empty-payload guard
-        if not any(
-            input_data.get(k)
-            for k in (
-                "admissions",
-                "diagnoses",
-                "icu_stays",
-                "procedures",
-                "prescriptions",
-                "patients",
-                "targets",
-            )
-        ):
-            return None
-        
-        single_sample = False # flag for single sample case, updated later
-        
-        # Convert and validate each table (slice to required cols)
-        admissions_df = self._to_df(input_data.get("admissions"), "admissions")
-        diagnoses_df = self._to_df(input_data.get("diagnoses"), "diagnoses")
-        icu_stays_df = self._to_df(input_data.get("icu_stays"), "icu_stays")
-        procedures_df = self._to_df(input_data.get("procedures"), "procedures")
-        prescriptions_df = self._to_df(input_data.get("prescriptions"), "prescriptions")
-        patients_df = self._to_df(input_data.get("patients"), "patients")
-        targets_df = None
-        target_provided = False
-        if "targets" in input_data and input_data["targets"] is not None:
-            target_provided = True
-            targets_df = self._to_df(input_data["targets"], "targets")
 
-        dataset = self._preprocess(
-            admissions_df=admissions_df,
-            diagnoses_df=diagnoses_df,
-            icu_stays_df=icu_stays_df,
-            procedures_df=procedures_df,
-            prescriptions_df=prescriptions_df,
-            patients_df=patients_df,
-            targets_df=targets_df
-        )
+        self._validate_input_data(input_data)
+        dataset, target_provided = self._transform_input_data(input_data)
 
         # If preprocessing yields no rows, short-circuit
         if len(dataset) == 0:
@@ -299,10 +421,12 @@ class ModelPrediction:
                     "attention_scores": None,
                     "hadm_ids": None,
                     "subject_ids": None,
-                }, compute_metrics=False
+                },
+                compute_metrics=False,
             )
-        
+
         # Check for single sample case and set flag
+        single_sample = False
         if len(dataset) == 1:
             single_sample = True
 
@@ -353,11 +477,21 @@ class ModelPrediction:
                 all_true_labels.append(true_labels.cpu().numpy())
 
         # Concatenate all batch results
-        attention_weights: list = np.concatenate(all_attn, axis=0).tolist() if all_attn else None
-        true_labels: list = np.concatenate(all_true_labels, axis=0).tolist() if target_provided else None
+        attention_weights: list = (
+            np.concatenate(all_attn, axis=0).tolist() if all_attn else None
+        )
+        true_labels: list = (
+            np.concatenate(all_true_labels, axis=0).tolist()
+            if target_provided
+            else None
+        )
         pred_probs = np.concatenate(all_probs, axis=0) if all_probs else np.array([])
-        pred_labels: list = (pred_probs >= prob_threshold).astype(int).tolist() if pred_probs.size > 0 else []
-        
+        pred_labels: list = (
+            (pred_probs >= prob_threshold).astype(int).tolist()
+            if pred_probs.size > 0
+            else []
+        )
+
         # Convert to list
         pred_probs: list = pred_probs.tolist()
 
@@ -369,17 +503,140 @@ class ModelPrediction:
         if isinstance(subject_ids, pd.Series):
             subject_ids = subject_ids.astype("Int64").tolist()
 
+        pred_results = self._prepare_prediction_results_dict(
+            pred_probs=pred_probs,
+            pred_labels=pred_labels,
+            true_labels=true_labels,
+            attention_weights=attention_weights,
+            hadm_ids=hadm_ids,
+            subject_ids=subject_ids,
+        )
+
         return self._postprocess(
-            {
-                "pred_probs": pred_probs,
-                "pred_labels": pred_labels,
-                "true_labels": true_labels,
-                "attention_weights": attention_weights,
-                "hadm_ids": hadm_ids,
-                "subject_ids": subject_ids,
-            },
+            pred_results,
             compute_metrics=target_provided and not single_sample,
         )
+
+    def explain_single_patient(
+        self, input_data: Dict[str, Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Predict recurrent health events for a single patient from input tables (as JSON dictionaries).
+
+        input_data keys (row dicts):
+          - "admissions"
+          - "diagnoses"
+          - "icu_stays"
+          - "procedures"
+          - "prescriptions"
+          - "patients"
+
+        Returns:
+          {
+            "prediction": {
+              "pred_probs": [float],
+              "pred_labels": [int],
+              "attention_scores": [[...]] | null,
+              "hadm_ids": [int|null] | null,
+              "subject_ids": [int|null] | null
+            },
+            input_features: {
+                "longitudinal": [[...]],
+                "current": [...],
+            },
+            "metadata": {
+              "model_name": str,
+            },
+          }
+        """
+
+        self._validate_input_data(input_data)
+        dataset, target_provided = self._transform_input_data(
+            input_data, save_unscaled_features=True
+        )
+
+        # If preprocessing yields no rows, short-circuit
+        if len(dataset) == 0:
+            return {
+                "prediction": {
+                    "pred_probs": [],
+                    "pred_labels": [],
+                    "attention_scores": None,
+                    "hadm_ids": None,
+                    "subject_ids": None,
+                },
+                "input_features": {
+                    "longitudinal": [],
+                    "current": [],
+                },
+                "metadata": {
+                    "model_name": self.model_config.get(
+                        "model_name", "RecurrentHealthEventsDLModel"
+                    ),
+                },
+            }
+
+        if len(dataset) > 1:
+            raise ValueError(
+                "explain_single_patient expects exactly one patient record."
+            )
+
+        reverse_chronological_order = dataset.reverse_chronological_order
+
+        model = self.model
+        prob_threshold: float = float(
+            self.model_config.get("probability_threshold", 0.5)
+        )
+        has_attention = getattr(model, "has_attention", lambda: False)()
+        attention_weights = None
+        # Inference loop (single sample)
+        with torch.no_grad():
+            # Expected dataset output: (x_current, x_past, mask_past, target)
+            x_current, x_past, mask_past, true_label = dataset[0]
+            # Add batch dimension and ensure CPU tensors
+            x_current = x_current.unsqueeze(0).to(self._device)
+            x_past = x_past.unsqueeze(0).to(self._device)
+            mask_past = mask_past.unsqueeze(0).to(self._device)
+
+            if has_attention:
+                outputs_logits, attention_weights = model(x_current, x_past, mask_past)
+                outputs_logits = outputs_logits.squeeze(-1)
+                if attention_weights is not None:
+                    attention_weights = attention_weights.squeeze(-1).cpu().numpy()
+            else:
+                outputs_logits = model(x_current, x_past, mask_past).squeeze(-1)
+            probs = torch.sigmoid(outputs_logits).reshape(-1)
+
+        pred_prob = probs.cpu().numpy()[0].item()
+        pred_label = int(pred_prob >= prob_threshold)
+
+        if attention_weights is not None:
+            attention_weights: list = (
+                attention_weights[0].tolist()
+            )
+        if reverse_chronological_order:
+            attention_weights = (
+                attention_weights[::-1] if attention_weights is not None else None
+            )
+
+        # Provide IDs back, dataset exposes them aligned with items
+        hadm_ids = dataset.hadm_ids
+        subject_ids = dataset.subject_ids
+        if isinstance(hadm_ids, pd.Series):
+            hadm_ids = hadm_ids.astype("Int64").tolist()
+        if isinstance(subject_ids, pd.Series):
+            subject_ids = subject_ids.astype("Int64").tolist()
+
+        pred_results = self._prepare_prediction_results_dict(
+            pred_probs=[pred_prob],
+            pred_labels=[pred_label],
+            true_labels=[int(true_label.item())] if target_provided else None,
+            attention_weights=[attention_weights] if attention_weights else None,
+            hadm_ids=hadm_ids,
+            subject_ids=subject_ids,
+        )
+
+        return self._postprocess_explain_single_patient(pred_results)
 
     # ----------------------- postprocess -----------------------
     def _postprocess(
@@ -393,6 +650,7 @@ class ModelPrediction:
             "timestamp": pd.Timestamp.now().isoformat(),
         }
 
+        # Get performance metrics if requested
         if compute_metrics:
             true_labels = np.array(pred_results.get("true_labels", []))
             pred_labels = np.array(pred_results.get("pred_labels", []))
@@ -410,6 +668,7 @@ class ModelPrediction:
             recall = None
             accuracy = None
             precision = None
+            f1 = None
 
         metrics = {
             "auc_roc": auroc,
@@ -421,3 +680,27 @@ class ModelPrediction:
         }
 
         return {"prediction": pred_results, "metadata": metadata, "metrics": metrics}
+
+    def _postprocess_explain_single_patient(
+        self, pred_results: dict
+    ) -> Dict[str, Any]:
+        # Build metadata
+        model_name = self.model_config.get("model_name", "RecurrentHealthEventsDLModel")
+        metadata = {
+            "model_name": model_name,
+            "number_of_predictions": 1,
+            "timestamp": pd.Timestamp.now().isoformat(),
+        }
+
+        # Get input features
+        current_features, past_features = self._get_patient_features()
+        input_features = {
+            "past": past_features,
+            "current": current_features,
+        }
+
+        return {
+            "prediction": pred_results,
+            "input_features": input_features,
+            "metadata": metadata,
+        }

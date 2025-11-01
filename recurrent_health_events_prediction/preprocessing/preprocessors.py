@@ -1,11 +1,19 @@
 import os
-from typing import Optional
+from typing import Optional, Tuple
 import pandas as pd
 import numpy as np
 from sklearn.discriminant_analysis import StandardScaler
-from recurrent_health_events_prediction.preprocessing.feature_extraction import FeatureExtractorDrugRelapse, FeatureExtractorMIMIC
-from recurrent_health_events_prediction.preprocessing.utils import bin_time_col_into_cat, calculate_past_rolling_stats, remap_discharge_location, remap_mimic_races
-from recurrent_health_events_prediction.training.utils import preprocess_features_to_one_hot_encode
+from recurrent_health_events_prediction.preprocessing.feature_extraction import (
+    FeatureExtractorDrugRelapse,
+    FeatureExtractorMIMIC,
+)
+from recurrent_health_events_prediction.preprocessing.utils import (
+    bin_time_col_into_cat,
+    calculate_past_rolling_stats,
+    remap_discharge_location,
+    remap_mimic_races,
+    one_hot_encode_and_drop,
+)
 
 class DataPreprocessorMIMIC:
     def __init__(self, config):
@@ -52,16 +60,14 @@ class DataPreprocessorMIMIC:
 
         return all_events_df
 
-    def preprocess_inference(
+    def calculate_features_inference(
         self,
         admissions_df: pd.DataFrame,
         icu_stays_df: pd.DataFrame,
         patients_df: pd.DataFrame,
         prescriptions_df: pd.DataFrame,
         procedures_df: pd.DataFrame,
-        one_hot_encoder_filepath: str = None,
-        scaler: Optional[StandardScaler] = None,
-    ) -> pd.DataFrame:
+    ) -> Tuple[pd.DataFrame, Optional[pd.DataFrame]]:
         """
         Preprocess the MIMIC dataset for inference.
         Args:
@@ -89,22 +95,8 @@ class DataPreprocessorMIMIC:
         df = remap_discharge_location(df)
         df = remap_mimic_races(df)
 
-        config = self.config
-        one_hot_encode_cols = config.get("features_to_one_hot_encode", [])
-        one_hot_cols_to_drop = config.get("one_hot_cols_to_drop", [])
-
-        df, _ = preprocess_features_to_one_hot_encode(
-            df, one_hot_encode_cols, one_hot_cols_to_drop, encoder_path=one_hot_encoder_filepath, fit_encoder=False
-        )
-
-        features_to_scale = config.get("features_to_scale", [])
-        features_to_scale = [feat for feat in features_to_scale if feat in df.columns]
-
-        if scaler:
-            df[features_to_scale] = scaler.transform(df[features_to_scale])
-
         return df
-
+    
     def _define_last_events(self, events_df: pd.DataFrame):
         """
         Identify and flag the last event (admission) for each patient, based on readmission history 

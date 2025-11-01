@@ -1,0 +1,90 @@
+{
+  "admissions": [
+    {
+      "HADM_ID": 145243,
+      "SUBJECT_ID": 222,
+      "ADMITTIME": "2137-07-15 15:31:00",
+      "DISCHTIME": "2137-07-17 12:00:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Medicare",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME"
+    },
+    {
+      "HADM_ID": 105083,
+      "SUBJECT_ID": 222,
+      "ADMITTIME": "2141-02-18 23:10:00",
+      "DISCHTIME": "2141-02-21 15:50:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Medicare",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME HEALTH CARE"
+    },
+    {
+      "HADM_ID": 137006,
+      "SUBJECT_ID": 222,
+      "ADMITTIME": "2142-06-11 07:15:00",
+      "DISCHTIME": "2142-06-19 12:30:00",
+      "ADMISSION_TYPE": "ELECTIVE",
+      "INSURANCE": "Medicare",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME HEALTH CARE"
+    },
+    {
+      "HADM_ID": 188038,
+      "SUBJECT_ID": 222,
+      "ADMITTIME": "2142-06-23 05:02:00",
+      "DISCHTIME": "2142-07-01 17:30:00",
+      "ADMISSION_TYPE": "EMERGENCY",
+      "INSURANCE": "Medicare",
+      "ETHNICITY": "WHITE",
+      "DISCHARGE_LOCATION": "HOME"
+    }
+  ],
+  "diagnoses": [
+    { "HADM_ID": 145243, "SUBJECT_ID": 222, "ICD9_CODE": "2720" },
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "ICD9_CODE": "41402" },
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "ICD9_CODE": "4400" },
+    { "HADM_ID": 145243, "SUBJECT_ID": 222, "ICD9_CODE": "78057" },
+    { "HADM_ID": 145243, "SUBJECT_ID": 222, "ICD9_CODE": "4019" },
+    { "HADM_ID": 188038, "SUBJECT_ID": 222, "ICD9_CODE": "56212" },
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "ICD9_CODE": "44022" },
+    { "HADM_ID": 188038, "SUBJECT_ID": 222, "ICD9_CODE": "5849" },
+    { "HADM_ID": 137006, "SUBJECT_ID": 222, "ICD9_CODE": "42781" },
+    { "HADM_ID": 137006, "SUBJECT_ID": 222, "ICD9_CODE": "42731" }
+  ],
+  "icu_stays": [
+    { "SUBJECT_ID": 222, "HADM_ID": 145243, "INTIME": "2137-07-15 15:33:34", "OUTTIME": "2137-07-17 13:08:46" },
+    { "SUBJECT_ID": 222, "HADM_ID": 105083, "INTIME": "2141-02-19 03:03:12", "OUTTIME": "2141-02-20 16:08:55" },
+    { "SUBJECT_ID": 222, "HADM_ID": 137006, "INTIME": "2142-06-11 13:53:32", "OUTTIME": "2142-06-14 18:15:39" },
+    { "SUBJECT_ID": 222, "HADM_ID": 188038, "INTIME": "2142-06-23 20:07:59", "OUTTIME": "2142-06-27 18:47:24" }
+  ],
+  "procedures": [
+    { "HADM_ID": 145243, "SUBJECT_ID": 222, "ICD9_CODE": "3990" },
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "ICD9_CODE": "3950" },
+    { "HADM_ID": 137006, "SUBJECT_ID": 222, "ICD9_CODE": "403" },
+    { "HADM_ID": 188038, "SUBJECT_ID": 222, "ICD9_CODE": "3893" }
+  ],
+  "prescriptions": [
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "DRUG": "Aspirin EC" },
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "DRUG": "Clopidogrel Bisulfate" },
+    { "HADM_ID": 105083, "SUBJECT_ID": 222, "DRUG": "Heparin Sodium" },
+    { "HADM_ID": 137006, "SUBJECT_ID": 222, "DRUG": "Amiodarone" },
+    { "HADM_ID": 137006, "SUBJECT_ID": 222, "DRUG": "Metoprolol Tartrate" },
+    { "HADM_ID": 137006, "SUBJECT_ID": 222, "DRUG": "Warfarin" },
+    { "HADM_ID": 188038, "SUBJECT_ID": 222, "DRUG": "Metoprolol Tartrate" },
+    { "HADM_ID": 188038, "SUBJECT_ID": 222, "DRUG": "Potassium Chloride" }
+  ],
+  "patients": [
+    { "SUBJECT_ID": 222, "GENDER": "F", "DOB": "2073-07-25" }
+  ],
+  "targets": [
+    {
+      "SUBJECT_ID": 222,
+      "HADM_ID": 188038,
+      "READMISSION_30_DAYS": 0,
+      "DAYS_UNTIL_NEXT_HOSPITALIZATION": 229.7430555555556,
+      "READMISSION_TIME_CAT": "120+"
+    }
+  ]
+}

@@ -4,11 +4,21 @@ import numpy as np
 import pandas as pd
 from scipy.stats import poisson
 
-from recurrent_health_events_prediction.model.RecurrentHealthEventsHMM import RecurrentHealthEventsHMM, get_model_selection_results_hmm
+from recurrent_health_events_prediction.model.RecurrentHealthEventsHMM import (
+    RecurrentHealthEventsHMM,
+    get_model_selection_results_hmm,
+)
 from recurrent_health_events_prediction.model.model_types import DistributionType
-from recurrent_health_events_prediction.preprocessing.utils import hot_encode_drug_classes, remap_discharge_location
-from recurrent_health_events_prediction.training.utils import preprocess_features_to_one_hot_encode
-from recurrent_health_events_prediction.utils.neptune_utils import add_plot_to_neptune_run, upload_hmm_output_file_to_neptune, upload_model_to_neptune
+from recurrent_health_events_prediction.preprocessing.utils import (
+    hot_encode_drug_classes,
+    remap_discharge_location,
+    one_hot_encode_and_drop,
+)
+from recurrent_health_events_prediction.utils.neptune_utils import (
+    add_plot_to_neptune_run,
+    upload_hmm_output_file_to_neptune,
+    upload_model_to_neptune,
+)
 
 import plotly.graph_objects as go
 import seaborn as sns
@@ -295,7 +305,7 @@ def load_and_prepare_historical_data_mimic(training_data_path: str, use_only_seq
     historical_events_df['LOG_DAYS_SINCE_LAST_HOSPITALIZATION'] = historical_events_df['LOG_DAYS_SINCE_LAST_HOSPITALIZATION'].fillna(median_log_days_since_last_hospitalization)
 
     historical_events_df = remap_discharge_location(historical_events_df)
-    historical_events_df, new_cols = preprocess_features_to_one_hot_encode(
+    historical_events_df, new_cols = one_hot_encode_and_drop(
         historical_events_df,
         ["DISCHARGE_LOCATION"],
         one_hot_cols_to_drop=["DISCHARGE_LOCATION_OTHERS"],

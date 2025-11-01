@@ -17,8 +17,15 @@ from recurrent_health_events_prediction.model.explainers import (
 )
 from recurrent_health_events_prediction.model.model_types import SurvivalModelType
 from recurrent_health_events_prediction.model.utils import plot_model_feature_importance
-from recurrent_health_events_prediction.preprocessing.utils import remap_discharge_location, remap_mimic_races
-from recurrent_health_events_prediction.training.utils import apply_train_test_split_file_survival, preprocess_features_to_one_hot_encode, summarize_search_results
+from recurrent_health_events_prediction.preprocessing.utils import (
+    remap_discharge_location,
+    remap_mimic_races,
+    one_hot_encode_and_drop,
+)
+from recurrent_health_events_prediction.training.utils import (
+    apply_train_test_split_file_survival,
+    summarize_search_results,
+)
 from recurrent_health_events_prediction.training.utils_survival import (
     evaluate_model,
     evaluate_model_around_specific_time,
@@ -27,15 +34,18 @@ from recurrent_health_events_prediction.training.utils_survival import (
     train_test_split_survival_data,
     build_strata_col,
 )
-from recurrent_health_events_prediction.training.utils_traditional_classifier import impute_missing_features
-from recurrent_health_events_prediction.utils.general_utils import check_if_file_exists, import_yaml_config
+from recurrent_health_events_prediction.training.utils_traditional_classifier import (
+    impute_missing_features,
+)
+from recurrent_health_events_prediction.utils.general_utils import (
+    check_if_file_exists,
+    import_yaml_config,
+)
 from recurrent_health_events_prediction.utils.neptune_utils import (
     add_model_config_to_neptune,
     add_plot_to_neptune_run,
     add_plotly_plots_to_neptune_run,
-    export_neptune_token_from_file,
     initialize_neptune_run,
-    track_file_in_neptune,
     upload_model_to_neptune,
     upload_training_data_to_neptune,
 )
@@ -468,7 +478,7 @@ def main(
             ]
             training_df = remap_discharge_location(training_df)
             training_df = remap_mimic_races(training_df)
-            training_df, _ = preprocess_features_to_one_hot_encode(
+            training_df, _ = one_hot_encode_and_drop(
                 training_df,
                 features_to_encode,
                 one_hot_cols_to_drop,

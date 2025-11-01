@@ -1,0 +1,132 @@
+{
+  "200": {
+    "description": "Successful prediction",
+    "content": {
+      "application/json": {
+        "example": {
+          "prediction": {
+            "pred_probs": [
+              0.3099987506866455
+            ],
+            "pred_labels": [
+              0
+            ],
+            "true_labels": [
+              0
+            ],
+            "attention_weights": [
+              [
+                0.33402198553085327,
+                0.39568451046943665,
+                0.27029353380203247,
+                0.0
+              ]
+            ],
+            "hadm_ids": [
+              188038
+            ],
+            "subject_ids": [
+              222
+            ]
+          },
+          "input_features": {
+            "past": [
+              {
+                "SUBJECT_ID": 222,
+                "HADM_ID": 145243,
+                "ADMITTIME": "2137-07-15T15:31:00",
+                "DISCHTIME": "2137-07-17T12:00:00",
+                "HOSPITALIZATION_DAYS": 1.8534722222222222,
+                "DAYS_IN_ICU": 1.8994444444444445,
+                "CHARLSON_INDEX": 4,
+                "NUM_DRUGS": 9,
+                "NUM_PROCEDURES": 2,
+                "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
+                "ADMISSION_TYPE_ELECTIVE": 0.0,
+                "DAYS_UNTIL_NEXT_HOSPITALIZATION": 1312.4652777777778
+              },
+              {
+                "SUBJECT_ID": 222,
+                "HADM_ID": 105083,
+                "ADMITTIME": "2141-02-18T23:10:00",
+                "DISCHTIME": "2141-02-21T15:50:00",
+                "HOSPITALIZATION_DAYS": 2.6944444444444446,
+                "DAYS_IN_ICU": 1.5456365740740743,
+                "CHARLSON_INDEX": 5,
+                "NUM_DRUGS": 25,
+                "NUM_PROCEDURES": 9,
+                "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
+                "ADMISSION_TYPE_ELECTIVE": 0.0,
+                "DAYS_UNTIL_NEXT_HOSPITALIZATION": 474.6423611111111
+              },
+              {
+                "SUBJECT_ID": 222,
+                "HADM_ID": 137006,
+                "ADMITTIME": "2142-06-11T07:15:00",
+                "DISCHTIME": "2142-06-19T12:30:00",
+                "HOSPITALIZATION_DAYS": 8.21875,
+                "DAYS_IN_ICU": 3.182025462962963,
+                "CHARLSON_INDEX": 13,
+                "NUM_DRUGS": 36,
+                "NUM_PROCEDURES": 2,
+                "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
+                "ADMISSION_TYPE_ELECTIVE": 1.0,
+                "DAYS_UNTIL_NEXT_HOSPITALIZATION": 3.6888888888888887
+              }
+            ],
+            "current": {
+              "SUBJECT_ID": 222,
+              "HADM_ID": 188038,
+              "ADMITTIME": "2142-06-23T05:02:00",
+              "DISCHTIME": "2142-07-01T17:30:00",
+              "HOSPITALIZATION_DAYS": 8.519444444444444,
+              "DAYS_IN_ICU": 3.944039351851852,
+              "CHARLSON_INDEX": 8,
+              "NUM_DRUGS": 22,
+              "NUM_PROCEDURES": 2,
+              "PARTICIPATION_DAYS": 1812,
+              "HAS_DIABETES": false,
+              "HAS_COPD": false,
+              "HAS_CONGESTIVE_HF": false,
+              "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
+              "DISCHARGE_LOCATION_HOME": 1.0,
+              "AGE": 69,
+              "GENDER_M": 0.0,
+              "ADMISSION_TYPE_ELECTIVE": 0.0,
+              "ETHNICITY_WHITE": 1.0,
+              "ETHNICITY_BLACK": 0.0,
+              "ETHNICITY_HISPANIC": 0.0,
+              "INSURANCE_MEDICAID": 0.0,
+              "INSURANCE_PRIVATE": 0.0
+            }
+          },
+          "metadata": {
+            "model_name": "Attention Pooling",
+            "number_of_predictions": 1,
+            "timestamp": "2025-10-31T20:49:58.932641"
+          }
+        }
+      }
+    }
+  },
+  "422": {
+    "description": "Validation error. Missing or invalid fields",
+    "content": {
+      "application/json": {
+        "example": {
+          "detail": "Missing required table 'patients' or invalid schema."
+        }
+      }
+    }
+  },
+  "500": {
+    "description": "Internal server error. Prediction failure",
+    "content": {
+      "application/json": {
+        "example": {
+          "detail": "Prediction failed: model file not found"
+        }
+      }
+    }
+  }
+}

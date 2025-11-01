@@ -1,5 +1,5 @@
 # api/schemas.py
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 
@@ -50,7 +50,7 @@ class TargetRow(_AllowExtra):
     READMISSION_30_DAYS: int  # or bool if you normalize to True/False
 
 
-class BatchPayload(BaseModel):
+class PredictionPayload(BaseModel):
     """
     Container for batched patient data used for model inference.
 
@@ -94,7 +94,6 @@ class BatchPayload(BaseModel):
         title="Targets (List[TargetRow])",
     )
 
-
 class PredictionBody(BaseModel):
     pred_probs: List[float]
     pred_labels: List[int]
@@ -102,7 +101,6 @@ class PredictionBody(BaseModel):
     attention_weights: Optional[List[List[float]]] = None
     hadm_ids: Optional[List[Any]] = None
     subject_ids: Optional[List[Any]] = None
-
 
 class PredictionMetadata(BaseModel):
     model_name: str
@@ -117,7 +115,16 @@ class PredictionMetrics(BaseModel):
     auc_roc: Optional[float] = None
     confusion_matrix: Optional[List[List[int]]] = None
 
-class PredictionEnvelope(BaseModel):
+class InputFeatures(BaseModel):
+    past: Optional[List[Dict[str, Any]]]
+    current: Dict[str, Any]
+
+class PredictionBatchEnvelope(BaseModel):
     prediction: PredictionBody
     metadata: PredictionMetadata
     metrics: PredictionMetrics
+
+class ExplainSinglePatientEnvelope(BaseModel):
+    prediction: PredictionBody
+    input_features: InputFeatures
+    metadata: PredictionMetadata

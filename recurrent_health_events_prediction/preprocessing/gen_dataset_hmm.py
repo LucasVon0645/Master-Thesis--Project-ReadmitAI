@@ -25,8 +25,8 @@ from recurrent_health_events_prediction.preprocessing.utils import (
     get_past_events,
     hot_encode_drug_classes,
     remap_discharge_location,
+    one_hot_encode_and_drop
 )
-from recurrent_health_events_prediction.training.utils import preprocess_features_to_one_hot_encode
 from recurrent_health_events_prediction.utils.neptune_utils import (
     add_plot_to_neptune_run,
     upload_hmm_output_file_to_neptune,
@@ -75,7 +75,7 @@ def load_data_for_inference_mimic(inference_data_path):
     all_events_df["ADMITTIME"] = pd.to_datetime(all_events_df["ADMITTIME"])
     all_events_df["DISCHTIME"] = pd.to_datetime(all_events_df["DISCHTIME"])
     all_events_df = remap_discharge_location(all_events_df)
-    all_events_df, new_cols = preprocess_features_to_one_hot_encode(
+    all_events_df, new_cols = one_hot_encode_and_drop(
         all_events_df,
         ["DISCHARGE_LOCATION"],
         one_hot_cols_to_drop=["DISCHARGE_LOCATION_OTHERS"],
@@ -88,7 +88,7 @@ def load_data_for_inference_mimic(inference_data_path):
     last_events_df["ADMITTIME"] = pd.to_datetime(last_events_df["ADMITTIME"])
     last_events_df["DISCHTIME"] = pd.to_datetime(last_events_df["DISCHTIME"])
     last_events_df = remap_discharge_location(last_events_df)
-    last_events_df, new_cols = preprocess_features_to_one_hot_encode(
+    last_events_df, new_cols = one_hot_encode_and_drop(
         last_events_df,
         ["DISCHARGE_LOCATION"],
         one_hot_cols_to_drop=["DISCHARGE_LOCATION_OTHERS"],

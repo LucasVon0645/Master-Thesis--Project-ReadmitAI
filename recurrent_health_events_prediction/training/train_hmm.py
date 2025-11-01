@@ -1,8 +1,7 @@
 import os
 import pandas as pd
 
-from recurrent_health_events_prediction.training.utils import preprocess_features_to_one_hot_encode
-from recurrent_health_events_prediction.preprocessing.utils import remap_discharge_location, remap_mimic_races
+from recurrent_health_events_prediction.preprocessing.utils import remap_discharge_location, remap_mimic_races, one_hot_encode_and_drop
 from recurrent_health_events_prediction.utils.neptune_utils import initialize_neptune_run, track_file_in_neptune
 from recurrent_health_events_prediction.utils.general_utils import import_yaml_config, check_if_file_exists, check_if_directory_exists, stringify_dict_values
 from utils_hmm import (
@@ -179,7 +178,7 @@ def main(
                 last_events_with_hmm_feat_df
             )
             last_events_with_hmm_feat_df, new_cols = (
-                preprocess_features_to_one_hot_encode(
+                one_hot_encode_and_drop(
                     last_events_with_hmm_feat_df,
                     features_to_encode,
                     one_hot_cols_to_drop,

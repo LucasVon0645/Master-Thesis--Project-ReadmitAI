@@ -412,27 +412,31 @@ def main(
 
     training_data_config = data_config['training_data'][dataset]
     train_test_data_dir = training_data_config["data_directory"]
-    
+
     print("Loading training data config from: ", train_test_data_dir)        
-    
+
     target_col = training_data_config["binary_event_col"]  # Variable to predict
     event_id_col = training_data_config["hosp_id_col"]
     class_names= training_data_config.get("class_names", None)
     features_to_scale = training_data_config.get('features_to_scale', None)
     missing_features = model_config.get('missing_features', None)
     next_admt_type_col = training_data_config.get("next_admt_type_col", None)
-    
+
     train_data_filepath = os.path.join(train_test_data_dir, "train_full.csv")
     test_data_filepath = os.path.join(train_test_data_dir, "test.csv")
-    
+
     print("Dataset: ", dataset)
     print("Loading training data from: ", train_data_filepath)
     print("Loading test data from: ", test_data_filepath)
-    
+
     train_df = pd.read_csv(train_data_filepath)
-    train_df = train_df[(train_df["IS_LAST_EVENT"] == 1) & (train_df[next_admt_type_col] != "ELECTIVE")]
+    train_df = train_df[
+        (train_df["IS_LAST_EVENT"] == 1) & (train_df[next_admt_type_col] != "ELECTIVE")
+    ]
     test_df = pd.read_csv(test_data_filepath)
-    test_df = test_df[(test_df["IS_LAST_EVENT"] == 1) & (test_df[next_admt_type_col] != "ELECTIVE")]
+    test_df = test_df[
+        (test_df["IS_LAST_EVENT"] == 1) & (test_df[next_admt_type_col] != "ELECTIVE")
+    ]
 
     print("Output directory: ", output_dir)
 
