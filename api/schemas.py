@@ -106,6 +106,7 @@ class PredictionMetadata(BaseModel):
     model_name: str
     number_of_predictions: int
     timestamp: str
+    prob_threshold: float
 
 class PredictionMetrics(BaseModel):
     accuracy: Optional[float] = None
@@ -119,12 +120,25 @@ class InputFeatures(BaseModel):
     past: Optional[List[Dict[str, Any]]]
     current: Dict[str, Any]
 
+class FeatureAttributionSplit(BaseModel):
+    past_attribution: float
+    current_attribution: float
+
+class FeatureAttributionRow(BaseModel):
+    feature: str
+    attribution: float
+
+class ExplanationBody(BaseModel):
+    current_features_attributions: List[FeatureAttributionRow]
+    past_features_attributions: List[FeatureAttributionRow]
+    feature_attribution_split: FeatureAttributionSplit
+
 class PredictionBatchEnvelope(BaseModel):
     prediction: PredictionBody
     metadata: PredictionMetadata
     metrics: PredictionMetrics
 
 class ExplainSinglePatientEnvelope(BaseModel):
-    prediction: PredictionBody
+    explanation: ExplanationBody
     input_features: InputFeatures
     metadata: PredictionMetadata

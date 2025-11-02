@@ -1,7 +1,9 @@
 from importlib import import_module, resources as impresources
+import json
 from typing import Any, Dict, List, Tuple, Optional
 
 import joblib
+from scipy import stats
 from sklearn.metrics import (
     confusion_matrix,
     precision_score,
@@ -24,6 +26,7 @@ from recurrent_health_events_prediction.data_extraction.utils import (
 from recurrent_health_events_prediction.datasets.HospReadmDataset import (
     HospReadmDataset,
 )
+from recurrent_health_events_prediction.model.explainers import explain_deep_learning_model_feat
 from recurrent_health_events_prediction.preprocessing.preprocessors import (
     DataPreprocessorMIMIC,
 )
@@ -69,6 +72,12 @@ class ModelPrediction:
         self._one_hot_encoder = None
 
         self.unscaled_feat_df = None
+
+        self.train_explain_stats_path = self.api_config.get(
+            "train_explain_stats_path", None
+        )
+
+        self._train_explain_stats: Optional[Dict[str, Any]] = None
 
         # Required columns (keys should match incoming payload)
         # Expecting: admissions_diagnoses, icu_stays, procedures, prescriptions, patients
@@ -143,6 +152,21 @@ class ModelPrediction:
                     f"One-hot encoder file not found: {self.one_hot_encoder_filepath}"
                 ) from e
         return self._one_hot_encoder
+
+    @property
+    def train_explain_stats(self) -> Dict[str, Any]:
+        if self._train_explain_stats is None:
+            with open(self.train_explain_stats_path, "r") as f:
+                raw = json.load(f)
+            stats = {}
+            for k, v in raw.items():
+                # convert lists back to tensors when appropriate
+                if isinstance(v, list):
+                    stats[k] = torch.tensor(v)
+                else:
+                    stats[k] = v
+            self._train_explain_stats = stats
+        return self._train_explain_stats
 
     # ----------------------- helpers -----------------------
     def _validate_input_data(self, input_data: Dict[str, List[Dict[str, Any]]]) -> None:
@@ -294,7 +318,7 @@ class ModelPrediction:
         patients_df = self._to_df(input_data.get("patients"), "patients")
         targets_df = None
         target_provided = False
-        if "targets" in input_data and input_data["targets"] is not None:
+        if "targets" in input_data and input_data["targets"] is not None and len(input_data["targets"]) > 0:
             target_provided = True
             targets_df = self._to_df(input_data["targets"], "targets")
 
@@ -372,6 +396,19 @@ class ModelPrediction:
             "subject_ids": subject_ids,
         }
 
+    def _get_metadata_dict(
+        self, number_of_predictions: int, prob_threshold: Optional[float]
+    ) -> Dict[str, Any]:
+        model_name = self.model_config.get("model_name", "RecurrentHealthEventsDLModel")
+        if prob_threshold is None:
+            prob_threshold = float(self.model_config.get("probability_threshold", 0.5))
+        return {
+            "model_name": model_name,
+            "number_of_predictions": int(number_of_predictions),
+            "timestamp": pd.Timestamp.now().isoformat(),
+            "prob_threshold": prob_threshold,
+        }
+
     # ----------------------- public API -----------------------
     def predict(self, input_data: Dict[str, List[Dict[str, Any]]]) -> Dict[str, Any]:
         """
@@ -414,7 +451,7 @@ class ModelPrediction:
 
         # If preprocessing yields no rows, short-circuit
         if len(dataset) == 0:
-            return self._postprocess(
+            return self._postprocess_predict(
                 {
                     "pred_probs": [],
                     "pred_labels": [],
@@ -422,6 +459,7 @@ class ModelPrediction:
                     "hadm_ids": None,
                     "subject_ids": None,
                 },
+                prob_threshold=prob_threshold,
                 compute_metrics=False,
             )
 
@@ -512,8 +550,9 @@ class ModelPrediction:
             subject_ids=subject_ids,
         )
 
-        return self._postprocess(
+        return self._postprocess_predict(
             pred_results,
+            prob_threshold=prob_threshold,
             compute_metrics=target_provided and not single_sample,
         )
 
@@ -551,7 +590,7 @@ class ModelPrediction:
         """
 
         self._validate_input_data(input_data)
-        dataset, target_provided = self._transform_input_data(
+        dataset, _ = self._transform_input_data(
             input_data, save_unscaled_features=True
         )
 
@@ -581,74 +620,41 @@ class ModelPrediction:
                 "explain_single_patient expects exactly one patient record."
             )
 
-        reverse_chronological_order = dataset.reverse_chronological_order
-
         model = self.model
-        prob_threshold: float = float(
-            self.model_config.get("probability_threshold", 0.5)
-        )
-        has_attention = getattr(model, "has_attention", lambda: False)()
-        attention_weights = None
-        # Inference loop (single sample)
-        with torch.no_grad():
-            # Expected dataset output: (x_current, x_past, mask_past, target)
-            x_current, x_past, mask_past, true_label = dataset[0]
-            # Add batch dimension and ensure CPU tensors
-            x_current = x_current.unsqueeze(0).to(self._device)
-            x_past = x_past.unsqueeze(0).to(self._device)
-            mask_past = mask_past.unsqueeze(0).to(self._device)
 
-            if has_attention:
-                outputs_logits, attention_weights = model(x_current, x_past, mask_past)
-                outputs_logits = outputs_logits.squeeze(-1)
-                if attention_weights is not None:
-                    attention_weights = attention_weights.squeeze(-1).cpu().numpy()
-            else:
-                outputs_logits = model(x_current, x_past, mask_past).squeeze(-1)
-            probs = torch.sigmoid(outputs_logits).reshape(-1)
+        x_current, x_past, mask_past, _ = dataset[0]
+        feature_names_curr = self.model_config["current_feat_cols"]
+        feature_names_past = self.model_config["longitudinal_feat_cols"]
 
-        pred_prob = probs.cpu().numpy()[0].item()
-        pred_label = int(pred_prob >= prob_threshold)
+        fc1_layer = model.classifier_head[0]  # nn.Linear
+        stats = self.train_explain_stats
 
-        if attention_weights is not None:
-            attention_weights: list = (
-                attention_weights[0].tolist()
-            )
-        if reverse_chronological_order:
-            attention_weights = (
-                attention_weights[::-1] if attention_weights is not None else None
-            )
-
-        # Provide IDs back, dataset exposes them aligned with items
-        hadm_ids = dataset.hadm_ids
-        subject_ids = dataset.subject_ids
-        if isinstance(hadm_ids, pd.Series):
-            hadm_ids = hadm_ids.astype("Int64").tolist()
-        if isinstance(subject_ids, pd.Series):
-            subject_ids = subject_ids.astype("Int64").tolist()
-
-        pred_results = self._prepare_prediction_results_dict(
-            pred_probs=[pred_prob],
-            pred_labels=[pred_label],
-            true_labels=[int(true_label.item())] if target_provided else None,
-            attention_weights=[attention_weights] if attention_weights else None,
-            hadm_ids=hadm_ids,
-            subject_ids=subject_ids,
+        df_curr, df_past, df_split = explain_deep_learning_model_feat(
+            model,
+            x_current,
+            x_past,
+            mask_past,
+            feature_names_curr,
+            feature_names_past,
+            layer_for_split=fc1_layer,
+            baseline_strategy="means",
+            stats=stats,
+            n_steps=64,
+            internal_batch_size=16,
         )
 
-        return self._postprocess_explain_single_patient(pred_results)
+        return self._postprocess_explain_single_patient(df_curr, df_past, df_split)
 
     # ----------------------- postprocess -----------------------
-    def _postprocess(
-        self, pred_results: Dict[str, Any], compute_metrics: bool
+    def _postprocess_predict(
+        self, pred_results: Dict[str, Any], prob_threshold: float, compute_metrics: bool
     ) -> Dict[str, Any]:
-        model_name = self.model_config.get("model_name", "RecurrentHealthEventsDLModel")
-        number_of_predictions = len(pred_results.get("pred_probs", []))
-        metadata = {
-            "model_name": model_name,
-            "number_of_predictions": int(number_of_predictions),
-            "timestamp": pd.Timestamp.now().isoformat(),
-        }
+
+        # Build metadata
+        metadata = self._get_metadata_dict(
+            number_of_predictions=len(pred_results.get("pred_probs", [])),
+            prob_threshold=prob_threshold,
+        )
 
         # Get performance metrics if requested
         if compute_metrics:
@@ -682,15 +688,12 @@ class ModelPrediction:
         return {"prediction": pred_results, "metadata": metadata, "metrics": metrics}
 
     def _postprocess_explain_single_patient(
-        self, pred_results: dict
+        self, df_curr: pd.DataFrame, df_past: pd.DataFrame, df_split: pd.DataFrame
     ) -> Dict[str, Any]:
         # Build metadata
-        model_name = self.model_config.get("model_name", "RecurrentHealthEventsDLModel")
-        metadata = {
-            "model_name": model_name,
-            "number_of_predictions": 1,
-            "timestamp": pd.Timestamp.now().isoformat(),
-        }
+        metadata = self._get_metadata_dict(
+            number_of_predictions=1, prob_threshold=None
+        )
 
         # Get input features
         current_features, past_features = self._get_patient_features()
@@ -699,8 +702,16 @@ class ModelPrediction:
             "current": current_features,
         }
 
+        df_curr = df_curr[["feature", "attribution"]].sort_values(by="attribution", ascending=False)
+        df_past = df_past[["feature", "attribution"]].sort_values(by="attribution", ascending=False)
+        split_dict = df_split[["past_attribution", "current_attribution"]].iloc[0].to_dict()
+
         return {
-            "prediction": pred_results,
+            "explanation": {
+                "current_features_attributions": df_curr.to_dict(orient="records"),
+                "past_features_attributions": df_past.to_dict(orient="records"),
+                "feature_attribution_split": split_dict,
+            },
             "input_features": input_features,
             "metadata": metadata,
         }
