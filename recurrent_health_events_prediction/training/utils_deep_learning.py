@@ -1,6 +1,6 @@
 import os
 from typing import Optional, Tuple
-
+import plotly.express as px
 import neptune
 import pandas as pd
 import torch
@@ -391,3 +391,33 @@ def init_scheduler(optimizer, model_config, val_dataset=None):
         )
 
     return scheduler
+
+def plot_feature_attributions(
+    feat_attr_df: pd.DataFrame,
+    output_path: Optional[str] = None,
+    title: str = "Feature Attributions",
+    feature_col: str = "feature",
+    attr_col: str = "attribution",
+    top_k: Optional[int] = None,
+):
+    """
+    Plot feature attributions as a horizontal bar chart and save to output_path.
+    """
+    
+    # Sort features by absolute attribution value
+    feat_attr_df = feat_attr_df.sort_values(by=attr_col, key=lambda x: x.abs(), ascending=False)
+    
+    if top_k is not None:
+        feat_attr_df = feat_attr_df.head(top_k)
+
+    fig = px.bar(
+        feat_attr_df,
+        x=attr_col,
+        y=feature_col,
+        title=title,
+        orientation="h",
+    )
+    if output_path:
+        fig.write_html(output_path)
+    
+    return fig
