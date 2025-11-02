@@ -151,6 +151,7 @@ api:
     model_config_path: "/workspaces/msc-thesis-recurrent-health-modeling/_runs/attention_pooling_20251020_143800/model_config.yaml"
     scaler_filepath: "/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/scalers/multiple_hosp_patients/scaler.joblib"
     one_hot_encoder_filepath: "/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/one_hot_encoders/one_hot_encoder.joblib"
+    train_explain_stats_path: "/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/training_stats.json"
     required_cols:
       admissions:
       - "HADM_ID"

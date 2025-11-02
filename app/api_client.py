@@ -47,7 +47,7 @@ def predict_batch(
         "procedures": procedures_df.to_dict(orient="records"),
         "prescriptions": prescriptions_df.to_dict(orient="records"),
         "patients": patients_df.to_dict(orient="records"),
-        "targets": targets_df.to_dict(orient="records") if targets_df is not None else None,
+        "targets": targets_df.to_dict(orient="records") if targets_df is not None else [],
     }
     try:
         payload_json = json.dumps(payload)

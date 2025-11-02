@@ -1,5 +1,5 @@
-from __future__ import annotations
 import pandas as pd
+from datetime import datetime
 from typing import Any, Dict, List, Tuple, Optional
 import plotly.express as px
 import numpy as np
@@ -90,29 +90,33 @@ def sidebar_file_uploads(st) -> Tuple[Dict[str, Any], Dict[str, bool]]:
     
     return files, uploaded_files
 
-def initialize_session_state_vars(session_state):
-    if "admissions_df" not in session_state:
-        session_state.admissions_df = pd.DataFrame()
-    if "diagnoses_df" not in session_state:
-        session_state.diagnoses_df = pd.DataFrame()
-    if "icu_stays_df" not in session_state:
-        session_state.icu_stays_df = pd.DataFrame()
-    if "patients_df" not in session_state:
-        session_state.patients_df = pd.DataFrame()
-    if "procedures_df" not in session_state:
-        session_state.procedures_df = pd.DataFrame()
-    if "prescriptions_df" not in session_state:
-        session_state.prescriptions_df = pd.DataFrame()
-    if "targets_df" not in session_state:
-        session_state.targets_df = None
-    if "all_predictions_df" not in session_state:
-        session_state.all_predictions_df = pd.DataFrame()
-    if "metrics_available" not in session_state:
-        session_state.metrics_available = False
-    if "metrics_dict" not in session_state:
-        session_state.metrics_dict = {}
-    if "metadata_dict" not in session_state:
-        session_state.metadata_dict = {}
+def initialize_session_state_vars():
+    if "admissions_df" not in st.session_state:
+        st.session_state.admissions_df = pd.DataFrame()
+    if "diagnoses_df" not in st.session_state:
+        st.session_state.diagnoses_df = pd.DataFrame()
+    if "icu_stays_df" not in st.session_state:
+        st.session_state.icu_stays_df = pd.DataFrame()
+    if "patients_df" not in st.session_state:
+        st.session_state.patients_df = pd.DataFrame()
+    if "procedures_df" not in st.session_state:
+        st.session_state.procedures_df = pd.DataFrame()
+    if "prescriptions_df" not in st.session_state:
+        st.session_state.prescriptions_df = pd.DataFrame()
+    if "targets_df" not in st.session_state:
+        st.session_state.targets_df = None
+    if "all_predictions_df" not in st.session_state:
+        st.session_state.all_predictions_df = pd.DataFrame()
+    if "metrics_available" not in st.session_state:
+        st.session_state.metrics_available = False
+    if "metrics_dict" not in st.session_state:
+        st.session_state.metrics_dict = {}
+    if "metadata_dict" not in st.session_state:
+        st.session_state.metadata_dict = {}
+    if "selected_patient_id" not in st.session_state:
+        st.session_state.selected_patient_id = None
+    if "att_weights_dict" not in st.session_state:
+        st.session_state.att_weights_dict = {}
 
 def populate_session_state_from_files(files: Dict[str, Any], st_obj) -> None:
     """Read uploaded CSV files and populate Streamlit `session_state`.
@@ -177,6 +181,17 @@ def read_csv_to_dataframe(file) -> pd.DataFrame:
     df = pd.read_csv(file)
     return df
 
+def build_att_weights_dict(predictions) -> Dict[Any, List[float]]:
+    subject_ids = predictions["subject_ids"]
+    att_weights = predictions.get("attention_weights")
+    att_weights_dict = {}
+    if not att_weights:
+        return att_weights_dict
+    
+    for subj_id, weights in zip(subject_ids, att_weights):
+        att_weights_dict[subj_id] = weights
+    return att_weights_dict
+
 def build_predictions_dataframe(predictions: Dict[str, Any]) -> pd.DataFrame:
     if not predictions:
         return pd.DataFrame(columns=[
@@ -189,6 +204,9 @@ def build_predictions_dataframe(predictions: Dict[str, Any]) -> pd.DataFrame:
         "HADM_ID": predictions["hadm_ids"],
         "Readmission Prob.": predictions["pred_probs"],
     }
+    
+    pred_labels = predictions["pred_labels"]
+    data_dict["Predicted Outcome"] = ["Readmitted" if x == 1 else "Not Readmitted" for x in pred_labels]
 
     # Optional true label mapping
     if predictions.get("true_labels") is not None:
@@ -289,8 +307,7 @@ def format_percentage(x):
     return f"{x*100:.1f}%" if 0 <= x <= 1 else f"{x:.3f}"
 
 def select_patient_data(
-    subject_id: int,
-    st
+    subject_id: int
 ) -> Dict[str, pd.DataFrame]:
     
     admissions_df: pd.DataFrame = st.session_state.admissions_df
@@ -337,6 +354,27 @@ def select_patient_data(
     }
 
     return results_dict
+
+def get_specific_patient_pred(subject_id: int) -> Dict[str, Any]:
+    all_predictions_df: pd.DataFrame = st.session_state.all_predictions_df
+    patient_pred_df = all_predictions_df[
+        all_predictions_df["SUBJECT_ID"] == subject_id
+    ]
+    if patient_pred_df.empty:
+        return {}
+    
+    # Convert to dict
+    result = {
+        "SUBJECT_ID": patient_pred_df["SUBJECT_ID"].values[0],
+        "HADM_ID": patient_pred_df["HADM_ID"].values[0],
+        "pred_prob": patient_pred_df["Readmission Prob."].values[0],
+        "percentile": patient_pred_df["Percentile"].values[0],
+        "rank": patient_pred_df["Rank"].values[0],
+    }
+    if "True Outcome" in patient_pred_df.columns:
+        result["true_label"] = patient_pred_df["True Outcome"].values[0]
+    
+    return result
 
 def make_attention_fig(attention_weights, hadm_ids, kind="line"):
     """
@@ -399,6 +437,30 @@ def make_attention_fig(attention_weights, hadm_ids, kind="line"):
     )
     return fig
 
+def try_parse_datetime(s: str) -> Optional[datetime]:
+    """Parse an ISO-like datetime string into a datetime, or return None."""
+    if not s or not isinstance(s, str):
+        return None
+
+    # Accept "Z" as UTC by converting to +00:00 for fromisoformat
+    if s.endswith("Z"):
+        s = s[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(s)
+    except ValueError:
+        return None
+
+def format_datetime_str(s: str, fmt: str = "%b %d, %Y %H:%M:%S") -> Optional[str]:
+    """
+    Parse `s` and return a formatted string or None if it couldn't be parsed.
+    Default format: 'Jun 23, 2142 05:02:00'
+    """
+    dt = try_parse_datetime(s)
+    if dt is None:
+        return None
+    return dt.strftime(fmt)
+
 def _pretty_key(k: str) -> str:
     s = str(k).replace("_", " ").strip()
     return s[:1].upper() + s[1:]
@@ -412,6 +474,15 @@ def _cell_value(v):
             return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
         except Exception:
             return str(v)
+    if isinstance(v, float):
+        return f"{v:.2f}"
+    if isinstance(v, bool):
+        return "True" if v else "False"
+    
+    datetime_str = format_datetime_str(str(v))
+    if datetime_str is not None:
+        return datetime_str
+
     return v
 
 def show_kv_two_dfs(
@@ -462,3 +533,16 @@ def show_kv_two_dfs(
                     "Value": st.column_config.TextColumn("Value", width="large"),
                 },
             )
+
+def make_feature_attr_df(explanations: List[Dict]) -> pd.DataFrame:
+    """
+    Convert feature attributions dict to a DataFrame for plotting.
+    """
+    feature_attr_df = pd.DataFrame(explanations)
+    feature_attr_df = feature_attr_df.sort_values(
+        by="attribution", key=lambda x: x.abs(), ascending=False
+    ).reset_index(drop=True)
+    feature_attr_df = feature_attr_df.rename(
+        columns={"feature": "Feature", "attribution": "Attribution"}
+    )
+    return feature_attr_df
