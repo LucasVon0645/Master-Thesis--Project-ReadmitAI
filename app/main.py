@@ -234,8 +234,8 @@ elif active_view == "Specific Patient":
             with kpi2:
                 if true_label_patient is not None:
                     st.metric(
-                        "True Outcome",
-                        "Readmitted" if true_label_patient == 1 else "Not Readmitted",
+                        "True Outcome Readmitted",
+                        "Yes" if true_label_patient == 1 else "No",
                     )
             with kpi3:
                 st.metric(
@@ -287,7 +287,7 @@ elif active_view == "Specific Patient":
                 st.dataframe(past_features_df, use_container_width=True, hide_index=True)
 
             # Attention weights
-            attention_weights = st.session_state.att_weights_dict.get(str(selected_patient_id), [])
+            attention_weights = st.session_state.att_weights_dict.get(selected_patient_id, [])
             if len(attention_weights) > 0:
                 attention_weights = [w for w in attention_weights if w > 0]
                 if attention_weights:

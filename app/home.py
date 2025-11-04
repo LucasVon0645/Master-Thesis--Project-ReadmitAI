@@ -15,8 +15,7 @@ def render_home():
         st.markdown(
             """
     **Hospital readmission** is when a patient returns to the hospital **unplanned** after being discharged [1].  
-    The most common window used by clinicians and health systems is **within 30 days** of discharge  
-    (though 90-day, 6-month, and 1-year windows are also studied) [2].
+    The most common window used by clinicians and health systems is **within 30 days** of discharge (though 90-day, 6-month, and 1-year windows are also studied) [2].
 
     **Why 30 days? 💡** 
     It's a practical timeframe where post-discharge care, medication changes, follow-ups, and recovery challenges
