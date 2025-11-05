@@ -1,9 +1,8 @@
+from typing import Any, Dict, List, Tuple, Optional
+import numpy as np
 import pandas as pd
 from datetime import datetime
-from typing import Any, Dict, List, Tuple, Optional
-import plotly.express as px
-import numpy as np
-import plotly.graph_objects as go
+import ast
 import json
 import math
 import streamlit as st
@@ -239,66 +238,23 @@ def summarize_predictions(df: pd.DataFrame) -> Dict[str, Any]:
     }
     return summary
 
-def plot_probability_distribution(df: pd.DataFrame):
-    if 'True Outcome'  in df.columns:
-        fig = px.histogram(
-            df,
-            x="Readmission Prob.",
-            color="True Outcome",
-            nbins=50,
-            title="Distribution of Readmission Probabilities by True Outcome",
-            labels={"Readmission Prob.": "Predicted Readmission Probability"},
-            height=400,
-        )
-
-        fig.update_layout(bargap=0.1, yaxis_title="Count")
-
-        return fig
-    
-    fig = px.histogram(
-        df,
-        x="Readmission Prob.",
-        nbins=50,
-        title="Distribution of Readmission Probabilities",
-        labels={"Readmission Prob.": "Predicted Readmission Probability"},
-        height=400,
-    )
-
-    fig.update_layout(bargap=0.1, yaxis_title="Count")
-
-    return fig
-
-def plot_confusion_matrix(
-    conf_matrix: np.ndarray,
-    class_names: list[str],
-):
-    # Normalize if you want percentages (optional)
-    # conf_matrix = conf_matrix.astype('float') / conf_matrix.sum(axis=1, keepdims=True)
-
-    fig = go.Figure(
-        data=go.Heatmap(
-            z=conf_matrix,
-            x=class_names,  # predicted labels
-            y=class_names,  # true labels
-            colorscale="Blues",
-            text=conf_matrix,
-            texttemplate="%{text}",
-            hovertemplate="True: %{y}<br>Pred: %{x}<br>Count: %{z}<extra></extra>",
-            colorbar=dict(title="Count"),
-        )
-    )
-
-    fig.update_layout(
-        title="Confusion Matrix",
-        xaxis_title="Predicted label",
-        yaxis_title="True label",
-        yaxis_autorange="reversed",  # so [0,0] is top-left
-        template="plotly_white",
-        width=600,
-        height=600,
-    )
-
-    return fig
+def format_feature_value(val):
+    if isinstance(val, list):
+        return "<br>".join(map(str, val))
+    elif isinstance(val, str):
+        if val.startswith("[") and val.endswith("]"):
+            # Handle special cases like numpy string lists
+            try:
+                evaluated = ast.literal_eval(val)
+                if isinstance(evaluated, (list, tuple, np.ndarray)):
+                    return "<br>".join(map(str, evaluated))
+            except Exception:
+                pass
+    elif pd.isnull(val):
+        return "NA"
+    elif isinstance(val, float):
+        return f"{val:.2f}"
+    return str(val)
 
 def format_percentage(x):
     if x is None:
@@ -375,67 +331,6 @@ def get_specific_patient_pred(subject_id: int) -> Dict[str, Any]:
         result["true_label"] = patient_pred_df["True Outcome"].values[0]
     
     return result
-
-def make_attention_fig(attention_weights, hadm_ids, kind="line"):
-    """
-    Plot attention weights across the last n admissions.
-    
-    Parameters
-    ----------
-    attention_weights : list[float]
-        Attention values (length = n). Index 1 corresponds to the earliest
-        admission within the observation window.
-    hadm_ids : list[str|int]
-        All admission IDs. The last n are used, aligned to attention_weights.
-    kind : {"bar","line"}
-        Choose a bar chart or a line chart with markers.
-    """
-    attention_weights = list(filter(lambda w: w > 0, attention_weights))
-    n = len(attention_weights)
-    if n == 0:
-        raise ValueError("attention_weights is empty.")
-    if len(hadm_ids) < n:
-        raise ValueError("hadm_ids must be at least as long as attention_weights.")
-    
-    # Take the last n admissions and align with the attention weights
-    hadm_subset = hadm_ids[-n:]
-    x_idx = list(range(1, n + 1))  # 1-based indexing on the x-axis
-
-    if kind == "line":
-        trace = go.Scatter(
-            x=x_idx, y=attention_weights, mode="lines+markers",
-            customdata=np.array(hadm_subset),
-            hovertemplate=(
-                "Admission index: %{x}<br>"
-                "HADM_ID: %{customdata}<br>"
-                "Attention: %{y:.2f}<extra></extra>"
-            ),
-        )
-    else:  # "bar"
-        trace = go.Bar(
-            x=x_idx, y=attention_weights,
-            customdata=np.array(hadm_subset),
-            hovertemplate=(
-                "Admission index: %{x}<br>"
-                "HADM_ID: %{customdata}<br>"
-                "Attention: %{y:.2}<extra></extra>"
-            ),
-        )
-
-    fig = go.Figure(trace)
-    fig.update_layout(
-        title="Attention over the last admissions",
-        xaxis=dict(
-            title=f"Admission index within observation window "
-                  f"(1 = first of the last {n} admissions)",
-            dtick=1,          # show only integer ticks (… 1, 2, 3, …)
-            tick0=1,          # start ticks at 1
-            range=[0.5, n + 0.5],  # centers bars/points on integer positions
-        ),
-        yaxis=dict(title="Attention weight"),
-        margin=dict(l=60, r=20, t=50, b=70),
-    )
-    return fig
 
 def try_parse_datetime(s: str) -> Optional[datetime]:
     """Parse an ISO-like datetime string into a datetime, or return None."""

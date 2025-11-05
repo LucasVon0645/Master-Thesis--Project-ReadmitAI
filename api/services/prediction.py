@@ -3,7 +3,6 @@ import json
 from typing import Any, Dict, List, Tuple, Optional
 
 import joblib
-from scipy import stats
 from sklearn.metrics import (
     confusion_matrix,
     precision_score,
@@ -40,6 +39,8 @@ from recurrent_health_events_prediction.utils.general_utils import import_yaml_c
 with open(impresources.files(configs) / "data_config.yaml", encoding="utf-8") as f:
     data_config = yaml.safe_load(f)
 
+API_CONFIG_PATH = "config.yaml"
+
 
 class ModelPrediction:
     """
@@ -50,11 +51,11 @@ class ModelPrediction:
     - Returns probabilities, labels, optional attention, and optional IDs.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, api_config: Dict[str, Any]) -> None:
         self.preprocessing_config: Dict[str, Any] = data_config["training_data"][
             "mimic"
         ]
-        self.api_config: Dict[str, Any] = data_config["api"]["mimic"]
+        self.api_config: Dict[str, Any] = api_config
 
         # Model config and weights
         self.model_config_path = self.api_config["model_config_path"]

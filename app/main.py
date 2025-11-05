@@ -5,28 +5,34 @@ import streamlit as st
 
 from app.api_client import explain_single_patient, predict_batch, healthcheck, ApiError
 from app.home import render_home
+from app.plots import (
+    make_attention_fig,
+    plot_confusion_matrix,
+    plot_feature_attributions,
+    plot_probability_distribution,
+    plot_subject_evolution,
+)
 from app.utils import (
     build_att_weights_dict,
     build_predictions_dataframe,
     format_percentage,
     get_specific_patient_pred,
     initialize_session_state_vars,
-    make_attention_fig,
     make_feature_attr_df,
-    plot_probability_distribution,
-    plot_confusion_matrix,
     select_patient_data,
     show_kv_two_dfs,
     sidebar_file_uploads,
     populate_session_state_from_files,
 )
 from recurrent_health_events_prediction.training.utils import plot_calibration_curve
-from recurrent_health_events_prediction.training.utils_deep_learning import plot_feature_attributions
-from recurrent_health_events_prediction.visualization.utils import plot_subject_evolution
 
-st.set_page_config(page_title="Hospital Readmission Prediction System", layout="wide", page_icon=":hospital:")
+st.set_page_config(
+    page_title="Hospital Readmission Prediction System",
+    layout="wide",
+    page_icon=":hospital:",
+)
 
-st.title("Hospital Readmission Prediction System")
+st.title("Hospital Readmission Prediction System :hospital:")
 
 # --- Sidebar: upload + actions ---
 with st.sidebar.expander("Backend"):
@@ -50,7 +56,11 @@ procedures_file = files["procedures_file"]
 prescriptions_file = files["prescriptions_file"]
 targets_file = files["targets_file"]
 
-run_btn = st.sidebar.button("Run predictions", use_container_width=True, disabled=not (uploaded_files and api_ok))
+run_btn = st.sidebar.button(
+    "Run predictions",
+    use_container_width=True,
+    disabled=not (uploaded_files and api_ok),
+)
 
 initialize_session_state_vars()
 
@@ -84,8 +94,13 @@ if run_btn and uploaded_files and api_ok:
             st.error(str(e))
 
 # --- Guard: show onboarding message if no data ---
-if st.session_state.all_predictions_df is None or st.session_state.all_predictions_df.empty:
-    st.info("Upload CSVs in the left sidebar and click **Run predictions** to see results.")
+if (
+    st.session_state.all_predictions_df is None
+    or st.session_state.all_predictions_df.empty
+):
+    st.info(
+        "Upload CSVs in the left sidebar and click **Run predictions** to see results."
+    )
     render_home()
     st.stop()
 
@@ -120,13 +135,15 @@ active_view = st.radio(
 
 st.divider()
 
+prob_threshold = st.session_state.metadata_dict.get("prob_threshold", 0.5)
+
 # =========================
 # View 1: Model Predictions Table
 # =========================
 if active_view == "Model Predictions Table":
     st.subheader("Model Predictions Table")
     st.dataframe(df, use_container_width=True, hide_index=True)
-    st.caption(f"A probability threshold of {st.session_state.metadata_dict.get('prob_threshold', 0):.2f} is used.")
+    st.caption(f"A probability threshold of {prob_threshold:.2f} is used.")
 
 # =========================
 # View 2: Cohort Overview
@@ -139,7 +156,7 @@ elif active_view == "Cohort Overview":
     with c2:
         expected_num_admissions = (st.session_state.all_predictions_df["Predicted Outcome"] == "Readmitted").sum()
         st.metric("Expected Readmissions", str(expected_num_admissions))
-        st.caption(f"A probability threshold of {st.session_state.metadata_dict.get('prob_threshold', 0):.2f} is used.")
+        st.caption(f"A probability threshold of {prob_threshold:.2f} is used.")
     with c3:
         if 'True Outcome' in df.columns:
             value = f"{df[df['True Outcome'] == 'Readmitted'].shape[0]}"
@@ -147,7 +164,7 @@ elif active_view == "Cohort Overview":
             value = "Not Available"
         st.metric("Total Readmissions", value)
 
-    fig = plot_probability_distribution(df)
+    fig = plot_probability_distribution(df, prob_threshold)
     st.plotly_chart(fig, use_container_width=True)
 
 # =========================
