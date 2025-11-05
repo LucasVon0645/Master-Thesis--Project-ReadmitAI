@@ -504,7 +504,7 @@ def main(
         if model_type not in tags:
             tags.append(model_type)
         data_config_path = "/workspaces/master-thesis-recurrent-health-events-prediction/recurrent_health_events_prediction/configs/data_config.yaml"
-        neptune_run = initialize_neptune_run(data_config_path, run_name, dataset, tags=tags) if log_in_neptune else None
+        neptune_run = initialize_neptune_run(run_name, dataset, tags=tags) if log_in_neptune else None
 
         # Log model config and training data path
         neptune_run["training_data/path"] = training_data_filepath

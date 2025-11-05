@@ -56,7 +56,7 @@ def main(
     run_name = model_name
     data_config_path = "/workspaces/master-thesis-recurrent-health-events-prediction/recurrent_health_events_prediction/configs/data_config.yaml"
     neptune_run = (
-        initialize_neptune_run(data_config_path, run_name, dataset, tags=tags)
+        initialize_neptune_run(run_name, dataset, tags=tags)
         if log_in_neptune
         else None
     )

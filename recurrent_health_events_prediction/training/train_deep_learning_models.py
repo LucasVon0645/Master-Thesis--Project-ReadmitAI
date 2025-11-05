@@ -402,7 +402,7 @@ def main(
 
     neptune_run = (
         initialize_neptune_run(
-            data_config_path, neptune_run_name, "mimic", tags=neptune_tags
+            neptune_run_name, "mimic", tags=neptune_tags
         )
         if log_in_neptune
         else None
@@ -467,7 +467,6 @@ def main(
     print(f"Saved model config to {model_config_yaml_outpath}")
 
     # Train model
-
     model, loss_epochs = train(
         train_dataset, model_config, neptune_run=neptune_run, writer=writer,
         val_dataset=val_dataset, early_stopping_patience=5

@@ -264,7 +264,7 @@ if __name__ == "__main__":
         neptune_tags.append("all_patients")
     neptune_run = (
         initialize_neptune_run(
-            DATA_CONFIG_PATH, neptune_run_name, "mimic", tags=neptune_tags
+            neptune_run_name, "mimic", tags=neptune_tags
         )
         if LOG_IN_NEPTUNE
         else None

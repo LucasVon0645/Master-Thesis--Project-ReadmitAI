@@ -447,7 +447,7 @@ def main(
     )
     run_name = "baseline_classifiers"
     neptune_run = (
-        initialize_neptune_run(data_config_path, run_name, dataset, tags=tags)
+        initialize_neptune_run(run_name, dataset, tags=tags)
         if log_in_neptune
         else None
     )

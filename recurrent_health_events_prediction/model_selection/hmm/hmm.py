@@ -37,7 +37,7 @@ def model_selection_hmm(
     print_model_selection_config(hmm_config, max_num_states, n_repeats, max_attempts_per_fit, use_only_sequences_gte_2_steps)
 
     run_name = f"{model_name.lower()}_selection"
-    neptune_run = initialize_neptune_run(data_config_path, run_name=run_name, dataset=dataset, tags=neptune_tags) if log_in_neptune else None
+    neptune_run = initialize_neptune_run(run_name=run_name, dataset=dataset, tags=neptune_tags) if log_in_neptune else None
 
     # Load data
     if dataset == "mimic":
