@@ -436,3 +436,110 @@ def explain_deep_learning_model_feat(
         })
 
     return df_curr_all, df_past_all, df_split
+
+def global_feature_importance(
+    model,
+    train_loader,
+    test_loader,
+    current_feat_cols,
+    longitudinal_feat_cols,
+    device = torch.device("cpu"),
+    n_steps: int = 32,
+    baseline_strategy: str = "means",  # "zeros" | "means" | "medians"
+    internal_batch_size: int = 64
+):
+    model.eval()
+
+    # 1) Estatísticas do train, se necessário
+    stats = None
+    if baseline_strategy in ["means", "medians"]:
+        stats = compute_train_stats(train_loader, max_rows_for_median=200_000)
+        print("mean_curr shape:", stats["mean_curr"].shape)
+        print("mean_past shape:", stats["mean_past"].shape)
+        print("has_median:", stats["has_median"])
+
+    # 2) IG: forward wrapper recebe (x_curr, x_past, mask)
+    ig = IntegratedGradients(lambda x_c, x_p, m: _forward_for_attr(model, x_c, x_p, m))
+
+    sum_abs_curr = None         # [D_curr]
+    sum_abs_past = None    # [D_long]
+    sum_abs_time = None         # [T]
+    sum_sign_curr = None            # [D_curr]
+    sum_sign_past = None       # [D_long]
+    n_samples = 0
+
+    for batch in test_loader:
+        # Suporta datasets que retornam 3 ou 4 itens
+        if len(batch) == 4:
+            x_curr, x_past, mask, y = batch
+        else:
+            x_curr, x_past, mask = batch
+        mask = mask.bool()
+
+        # Devices & grads (IG precisa de grad nos inputs)
+        x_curr = x_curr.to(device).requires_grad_(True)
+        x_past = x_past.to(device).requires_grad_(True)
+        mask   = mask.to(device)
+        if mask.dim() == 3 and mask.shape[-1] == 1:
+            mask = mask.squeeze(-1)  # [B,T]
+
+        # 3) Baselines per batch (same shape as current batch)
+        base_curr, base_past = _make_baselines(
+            x_curr, x_past, mask,
+            strategy=baseline_strategy,
+            stats=stats
+        )
+
+        # 4) IG per batch (assigns only on x_curr and x_past; mask goes as extra arg)
+        attr_curr, attr_past = ig.attribute(
+            inputs=(x_curr, x_past),
+            baselines=(base_curr, base_past),
+            additional_forward_args=(mask,),
+            target=None,                 # binário: único logit
+            n_steps=n_steps,
+            internal_batch_size=internal_batch_size
+        )
+        
+        attr_abs_curr = attr_curr.abs()
+        attr_abs_past = attr_past.abs()
+
+        # 5) Aggregations with absolute values (|.|) and sum over the batch
+        b_abs_curr = attr_abs_curr.sum(dim=0)        # [D_curr]
+        b_abs_past = attr_abs_past.sum(dim=(0, 1))  # [D_long]
+        b_abs_time = attr_abs_past.sum(dim=(0, 2))       # [T]
+        
+        # 6) Aggregations with signed values
+        b_curr = attr_curr.sum(dim=0)            # [D_curr]
+        b_past = attr_past.sum(dim=(0, 1))  # [D_long]
+
+        sum_abs_curr = b_abs_curr if sum_abs_curr is None else sum_abs_curr + b_abs_curr
+        sum_abs_past = b_abs_past if sum_abs_past is None else sum_abs_past + b_abs_past
+        sum_abs_time = b_abs_time if sum_abs_time is None else sum_abs_time + b_abs_time
+
+        sum_sign_curr = b_curr if sum_sign_curr is None else sum_sign_curr + b_curr
+        sum_sign_past = b_past if sum_sign_past is None else sum_sign_past + b_past
+
+        n_samples += x_curr.size(0)
+
+    # 6) Means over all samples
+    mean_abs_curr = sum_abs_curr / max(n_samples, 1)
+    mean_abs_past = sum_abs_past / max(n_samples, 1)
+    mean_abs_time = sum_abs_time / max(n_samples, 1)
+    mean_sign_curr = sum_sign_curr / max(n_samples, 1)
+    mean_sign_past = sum_sign_past / max(n_samples, 1)
+    
+    curr_attr_df = pd.DataFrame({
+        "feature": current_feat_cols if current_feat_cols is not None else [f"Feature {i}" for i in range(len(mean_abs_curr))],
+        "attribution_activity": mean_abs_curr.cpu().detach().numpy(),
+        "attribution_direction": mean_sign_curr.cpu().detach().numpy()
+    }).sort_values(by="attribution_activity", ascending=False)
+
+    past_attr_df = pd.DataFrame({
+        "feature": longitudinal_feat_cols if longitudinal_feat_cols is not None else [f"Feature {i}" for i in range(len(mean_abs_past))],
+        "attribution_activity": mean_abs_past.cpu().detach().numpy(),
+        "attribution_direction": mean_sign_past.cpu().detach().numpy()
+    }).sort_values(by="attribution_activity", ascending=False)
+    
+    mean_abs_time = mean_abs_time.cpu().detach().numpy()
+
+    return curr_attr_df, past_attr_df, mean_abs_time
