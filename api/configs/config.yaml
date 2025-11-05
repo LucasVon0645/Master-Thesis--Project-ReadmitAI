@@ -1,0 +1,40 @@
+model_filepath: "/workspaces/msc-thesis-recurrent-health-modeling/api/model/multiple_hosp_patients_model.pth"
+model_config_path: "/workspaces/msc-thesis-recurrent-health-modeling/api/model/model_config.yaml"
+scaler_filepath: "/workspaces/msc-thesis-recurrent-health-modeling/api/model/scaler.joblib"
+one_hot_encoder_filepath: "/workspaces/msc-thesis-recurrent-health-modeling/api/model/one_hot_encoder.joblib"
+train_explain_stats_path: "/workspaces/msc-thesis-recurrent-health-modeling/api/model/training_stats.json"
+required_cols:
+  admissions:
+  - "HADM_ID"
+  - "SUBJECT_ID"
+  - "ADMITTIME"
+  - "DISCHTIME"
+  - "ADMISSION_TYPE"
+  - "INSURANCE"
+  - "ETHNICITY"
+  - "DISCHARGE_LOCATION"
+  diagnoses:
+  - "HADM_ID"
+  - "SUBJECT_ID"
+  - "ICD9_CODE"
+  icu_stays:
+  - "SUBJECT_ID"
+  - "HADM_ID"
+  - "INTIME"
+  - "OUTTIME"
+  prescriptions:
+  - "HADM_ID"
+  - "SUBJECT_ID"
+  - "DRUG"
+  procedures:
+  - "HADM_ID"
+  - "SUBJECT_ID"
+  - "ICD9_CODE"
+  patients:
+  - "SUBJECT_ID"
+  - "GENDER"
+  - "DOB"
+  targets:
+  - "HADM_ID"
+  - "SUBJECT_ID"
+  - "READMISSION_30_DAYS"
