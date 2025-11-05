@@ -1,0 +1,48 @@
+batch_size: 64
+current_feat_cols:
+- LOG_HOSPITALIZATION_DAYS
+- LOG_DAYS_IN_ICU
+- CHARLSON_INDEX
+- LOG_NUM_DRUGS
+- NUM_PROCEDURES
+- LOG_PARTICIPATION_DAYS
+- HAS_DIABETES
+- HAS_COPD
+- HAS_CONGESTIVE_HF
+- DISCHARGE_LOCATION_POST_ACUTE_CARE
+- DISCHARGE_LOCATION_HOME
+- AGE
+- GENDER_M
+- ADMISSION_TYPE_ELECTIVE
+- ETHNICITY_WHITE
+- ETHNICITY_BLACK
+- ETHNICITY_HISPANIC
+- INSURANCE_MEDICAID
+- INSURANCE_PRIVATE
+learning_rate: 0.007004792359623531
+longitudinal_feat_cols:
+- LOG_HOSPITALIZATION_DAYS
+- LOG_DAYS_IN_ICU
+- CHARLSON_INDEX
+- LOG_NUM_DRUGS
+- NUM_PROCEDURES
+- DISCHARGE_LOCATION_POST_ACUTE_CARE
+- ADMISSION_TYPE_ELECTIVE
+- LOG_DAYS_UNTIL_NEXT_HOSPITALIZATION
+lr_scheduler: plateau
+max_sequence_length: 4
+model_class: AttentionPoolingNetCurrentQuery
+model_name: Attention Pooling with Current-Visit Query
+model_params:
+  dropout: 0.014417996600305944
+  hidden_size_head: 64
+  hidden_size_seq: 16
+  input_size_curr: 19
+  input_size_seq: 8
+  scale_scores: false
+  use_separate_values: true
+no_elective: true
+num_epochs: 100
+reverse_chronological_order: true
+weight_decay: 0.02683499184486217
+probability_threshold: 0.2216
