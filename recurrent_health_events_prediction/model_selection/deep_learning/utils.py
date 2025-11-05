@@ -1,11 +1,20 @@
 import copy
 import os
+from typing import Optional
+import numpy as np
 import optuna
 from pathlib import Path
 from optuna.importance import get_param_importances
+import pandas as pd
+import plotly.graph_objects as go
+import plotly.express as px
 import yaml
 
-from recurrent_health_events_prediction.utils.neptune_utils import upload_file_to_neptune
+from recurrent_health_events_prediction.utils.neptune_utils import add_plotly_plots_to_neptune_run, upload_file_to_neptune
+
+# =========================
+#  Hyperparameter Tuning Utils
+# =========================
 
 def save_space_to_txt(space_hyperparams, out_dir):
     """
@@ -133,3 +142,178 @@ def save_study_artifacts(
             neptune_base_path="artifacts",
             neptune_filename="best_config.yaml"
         )
+
+# =========================
+#  Feature Selection Utils
+# =========================
+
+def rank_features(attr_df, score_col="attribution_activity"):
+    """Return a DataFrame sorted by mean absolute attribution per feature."""
+    agg = (
+        attr_df.groupby("feature", as_index=False)[score_col]
+        .agg(lambda x: np.mean(np.abs(x)))
+    )
+    return agg.sort_values(score_col, ascending=False, ignore_index=True)
+
+
+def select_topk_features(curr_attr_df, past_attr_df,
+                         current_feat_cols, longitudinal_feat_cols,
+                         k_current=None, k_past=None,
+                         p_current=None, p_past=None):
+    """Return top-k (or top-% if p_) features within each group."""
+    curr_rank = rank_features(curr_attr_df)
+    past_rank = rank_features(past_attr_df)
+
+    kc = k_current or max(1, int(round(p_current / 100 * len(current_feat_cols))))
+    kp = k_past or max(1, int(round(p_past / 100 * len(longitudinal_feat_cols))))
+
+    keep_curr = set(curr_rank.head(kc)["feature"])
+    keep_past = set(past_rank.head(kp)["feature"])
+
+    new_curr = [f for f in current_feat_cols if f in keep_curr]
+    new_past = [f for f in longitudinal_feat_cols if f in keep_past]
+    return new_curr, new_past
+
+
+def make_auc_vs_features_plot(results, title="AUC vs Total Features"):
+    """
+    Create a Plotly line plot showing AUROC vs total number of features.
+    
+    Parameters
+    ----------
+    results : list[dict]
+        Output list from run_grouped_feature_selection().
+    title : str
+        Title of the plot.
+    
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        Interactive Plotly figure.
+    """
+    df = pd.DataFrame(results).copy()
+    df["total_features"] = df.get("n_current", 0) + df.get("n_past", 0)
+    df = df.sort_values("total_features")
+
+    # Build custom hover text
+    hover_text = (
+        "Total features: %{x}<br>"
+        "AUROC: %{y:.4f}<br>"
+        "k_current: %{customdata[0]}<br>"
+        "k_past: %{customdata[1]}"
+    )
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df["total_features"],
+        y=df["AUROC"],
+        mode="lines+markers",
+        name="AUC",
+        line=dict(width=2),
+        marker=dict(size=8),
+        customdata=df[["k_current", "k_past"]].values,
+        hovertemplate=hover_text
+    ))
+
+    # Highlight baseline if present
+    if "all" in df["k_current"].astype(str).values:
+        baseline = df[df["k_current"].astype(str) == "all"].iloc[0]
+        fig.add_trace(go.Scatter(
+            x=[baseline["total_features"]],
+            y=[baseline["AUROC"]],
+            mode="markers+text",
+            text=["Baseline"],
+            textposition="top center",
+            marker=dict(color="black", size=10, symbol="x"),
+            name="Baseline",
+            hovertemplate=(
+                f"Baseline<br>"
+                f"Total features: {baseline['total_features']}<br>"
+                f"AUROC: {baseline['AUROC']:.4f}"
+            )
+        ))
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Total number of features",
+        yaxis_title="AUROC",
+        template="plotly_white",
+        hovermode="x unified",
+        width=700,
+        height=450,
+    )
+
+    return fig
+
+def plot_feature_attributions(
+    feat_attr_df: pd.DataFrame,
+    output_path: Optional[str] = None,
+    title: str = "Feature Attributions",
+    feature_col: str = "feature",
+    attr_col: str = "attribution",
+    top_k: Optional[int] = None,
+):
+    """
+    Plot feature attributions as a horizontal bar chart and save to output_path.
+    """
+    
+    # Sort features by absolute attribution value
+    feat_attr_df = feat_attr_df.sort_values(by=attr_col, key=lambda x: x.abs(), ascending=False)
+    
+    if top_k is not None:
+        feat_attr_df = feat_attr_df.head(top_k)
+
+    fig = px.bar(
+        feat_attr_df,
+        x=attr_col,
+        y=feature_col,
+        title=title,
+        orientation="h",
+    )
+    if output_path:
+        fig.write_html(output_path)
+    
+    return fig
+
+def make_feature_attr_plots(curr_attr_df, past_attr_df, neptune_run):
+    # Plot attributions
+    fig_curr = plot_feature_attributions(
+        curr_attr_df,
+        title="Current Features - IG Attributions (Importance)",
+        feature_col="feature",
+        attr_col="attribution_activity",
+    )
+    fig_past = plot_feature_attributions(
+        past_attr_df,
+        title="Longitudinal Features - IG Attributions (Importance)",
+        feature_col="feature",
+        attr_col="attribution_activity",
+    )
+
+    fig_direction_curr = plot_feature_attributions(
+        curr_attr_df,
+        title="Current Features - IG Attributions (Effect-Direction)",
+        feature_col="feature",
+        attr_col="attribution_direction",
+    )
+
+    fig_direction_past = plot_feature_attributions(
+        past_attr_df,
+        title="Longitudinal Features - IG Attributions (Effect-Direction)",
+        feature_col="feature",
+        attr_col="attribution_direction",
+    )
+
+    add_plotly_plots_to_neptune_run(
+        neptune_run, fig_curr, "feature_importance_curr", "plots"
+    )
+    add_plotly_plots_to_neptune_run(
+        neptune_run, fig_past, "feature_importance_past", "plots"
+    )
+    add_plotly_plots_to_neptune_run(
+        neptune_run, fig_direction_curr, "feature_direction_curr", "plots"
+    )
+    add_plotly_plots_to_neptune_run(
+        neptune_run, fig_direction_past, "feature_direction_past", "plots"
+    )

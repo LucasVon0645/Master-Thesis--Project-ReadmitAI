@@ -1,7 +1,8 @@
 from typing import Optional
 import os
 import neptune
-
+from importlib import resources as impresources
+from recurrent_health_events_prediction import configs
 from recurrent_health_events_prediction.utils.general_utils import import_yaml_config
 
 def export_neptune_token_from_file(token_file_path: str):
@@ -187,7 +188,8 @@ def stringify_dict_values_for_neptune(dictionary: dict, use_parenthesis = True) 
         return '\n'.join(f"{key}: {value}" for key, value in dictionary.items())
 
 
-def initialize_neptune_run(data_config_path: str, run_name: str, dataset, tags: Optional[list] = None) -> neptune.Run:
+def initialize_neptune_run(run_name: str, dataset, tags: Optional[list] = None) -> neptune.Run:
+    data_config_path = (impresources.files(configs) / "data_config.yaml")
     data_config = import_yaml_config(data_config_path)
 
     token_file_path = data_config["neptune"]["token_file_path"]
