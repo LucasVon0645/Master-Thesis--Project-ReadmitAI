@@ -276,7 +276,7 @@ def plot_feature_attributions(
     
     return fig
 
-def make_feature_attr_plots(curr_attr_df, past_attr_df, neptune_run):
+def make_feature_attr_plots(curr_attr_df, past_attr_df, mean_abs_time, neptune_run):
     # Plot attributions
     fig_curr = plot_feature_attributions(
         curr_attr_df,
@@ -317,3 +317,20 @@ def make_feature_attr_plots(curr_attr_df, past_attr_df, neptune_run):
     add_plotly_plots_to_neptune_run(
         neptune_run, fig_direction_past, "feature_direction_past", "plots"
     )
+
+def plot_attribution_over_time(
+    mean_abs_time, title: str = "Absolute Attribution over Time"
+):
+    x = np.arange(1, len(mean_abs_time) + 1)
+
+    fig = go.Figure(go.Scatter(x=x, y=mean_abs_time, mode="lines+markers", marker=dict(size=6)))
+    fig.update_layout(
+        title=title,
+        xaxis_title="Time Index",
+        yaxis_title="Mean Absolute Attribution",
+        template="plotly_white",
+        width=800,
+        height=400,
+    )
+
+    return fig

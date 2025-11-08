@@ -91,7 +91,7 @@ def run_grouped_feature_selection(
 
     # ----- Compute attributions on baseline model -----
     print("\nComputing feature attributions on baseline model...")
-    curr_attr_df, past_attr_df, _ = global_feature_importance(
+    curr_attr_df, past_attr_df, mean_abs_time = global_feature_importance(
         model=model,
         train_loader=train_loader,
         test_loader=train_loader,
@@ -100,12 +100,12 @@ def run_grouped_feature_selection(
     )
 
     if neptune_run:
-        make_feature_attr_plots(curr_attr_df, past_attr_df, neptune_run)
+        make_feature_attr_plots(curr_attr_df, past_attr_df, mean_abs_time, neptune_run)
 
     n_curr = len(base_cfg["current_feat_cols"])
     n_past = len(base_cfg["longitudinal_feat_cols"])
     # ----- Run sweep -----
-    all_results = [{"k_current": "all", "k_past": "all", "AUROC": auroc_base, "F1": f1_base, "n_current": n_curr, "n_past": n_past}]
+    all_results = [{"k_current": n_curr, "k_past": n_past, "AUROC": auroc_base, "F1": f1_base, "n_current": n_curr, "n_past": n_past}]
 
     for (k_curr, k_past) in k_sweep:
         print(f"\n=== Running top-k sweep: current={k_curr}, past={k_past} ===")
@@ -208,6 +208,7 @@ def run_grouped_feature_selection(
     return all_results, best
 
 def main(
+    neptune_run_name: str,
     model_config_path: str,
     k_sweep: tuple,
     training_data_config: dict,
@@ -227,7 +228,6 @@ def main(
 
     neptune_run = None
     if log_in_neptune:
-        neptune_run_name = f"{model_name}_feat_selection"
         neptune_tags = ["feature_selection", "captum"]
         neptune_tags.append("multiple_hosp_patients" if multiple_hosp_patients else "all_patients")
         neptune_run = initialize_neptune_run(
@@ -250,7 +250,7 @@ def main(
 
 
 if __name__ == "__main__":
-    model_dir_name = "attention_pooling_query_curr"  # Change as needed
+    model_dir_name = "gru_duration_aware"  # Change as needed
     multiple_hosp_patients = True  # True if patients can have multiple hospital admissions
     model_config_path = f"/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/{model_dir_name}"
     if multiple_hosp_patients:
@@ -273,12 +273,12 @@ if __name__ == "__main__":
     PREPROC_TRAIN_CSV = f"{data_directory}/train_tuning_preprocessed.csv"
     PREPROC_EVAL_CSV = f"{data_directory}/validation_tuning_preprocessed.csv"
     CACHE_PYTORCH_DATASETS_PATH = f"{data_directory}/pytorch_datasets"
-    K_SWEEP = (
-        (5, 3),   # small subset
-        (10, 5),  # moderate
-        (15, 7),  # large subset
-    )
+    K_SWEEP = [
+        (3, 2), (5, 3), (8, 4), (10, 5), (15, 7)
+    ]
     
+    neptune_run_name = f"{model_dir_name}_feat_selection"
+
     file_exists = check_if_file_exists(model_config_path)
     if not file_exists:
         raise FileNotFoundError(f"Model config file not found: {model_config_path}")
@@ -293,6 +293,7 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"Preprocessed eval CSV file not found: {PREPROC_EVAL_CSV}")
 
     main(
+        neptune_run_name=neptune_run_name,
         model_config_path=model_config_path,
         k_sweep=K_SWEEP,
         training_data_config=training_data_config,
