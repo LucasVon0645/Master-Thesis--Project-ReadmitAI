@@ -392,6 +392,7 @@ def train_test_pipeline(
     results_df.to_csv(results_output_filepath, index=False)
 
 def main(
+    multiple_hosp_patients: bool,
     models_to_train: list[str],
     dataset: str,
     model_config_path: Optional[str],
@@ -411,7 +412,10 @@ def main(
         model_config = yaml.safe_load(f)
 
     training_data_config = data_config['training_data'][dataset]
-    train_test_data_dir = training_data_config["data_directory"]
+    if multiple_hosp_patients:
+        train_test_data_dir = training_data_config["data_directory_multiple_hosp_patients"]
+    else:
+        train_test_data_dir = training_data_config["data_directory"]
 
     print("Loading training data config from: ", train_test_data_dir)        
 
@@ -535,6 +539,7 @@ if __name__ == "__main__":
 
     main(
         dataset=dataset,
+        multiple_hosp_patients=multiple_hosp_patients,
         model_config_path=model_config_path,
         output_dir=output_dir,
         log_in_neptune=log_in_neptune,
