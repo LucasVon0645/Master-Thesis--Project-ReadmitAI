@@ -4,30 +4,123 @@
     "content": {
       "application/json": {
         "example": {
-          "prediction": {
-            "pred_probs": [
-              0.3099987506866455
+          "explanation": {
+            "current_features_attributions": [
+              {
+                "feature": "GENDER_M",
+                "attribution": 0.24595674472922477
+              },
+              {
+                "feature": "LOG_PARTICIPATION_DAYS",
+                "attribution": 0.2358463447027389
+              },
+              {
+                "feature": "DISCHARGE_LOCATION_HOME",
+                "attribution": 0.22482319205916312
+              },
+              {
+                "feature": "ETHNICITY_WHITE",
+                "attribution": 0.10764907337491195
+              },
+              {
+                "feature": "CHARLSON_INDEX",
+                "attribution": 0.10256935968132887
+              },
+              {
+                "feature": "LOG_DAYS_IN_ICU",
+                "attribution": 0.09470658411706093
+              },
+              {
+                "feature": "DISCHARGE_LOCATION_POST_ACUTE_CARE",
+                "attribution": 0.09341242036052116
+              },
+              {
+                "feature": "HAS_CONGESTIVE_HF",
+                "attribution": 0.08845120372267343
+              },
+              {
+                "feature": "LOG_NUM_DRUGS",
+                "attribution": 0.07460761060249363
+              },
+              {
+                "feature": "ETHNICITY_BLACK",
+                "attribution": 0.06263993062892159
+              },
+              {
+                "feature": "HAS_COPD",
+                "attribution": 0.057172259755996734
+              },
+              {
+                "feature": "INSURANCE_PRIVATE",
+                "attribution": 0.05212350433366347
+              },
+              {
+                "feature": "HAS_DIABETES",
+                "attribution": 0.04011269706481806
+              },
+              {
+                "feature": "ADMISSION_TYPE_ELECTIVE",
+                "attribution": 0.030900237636126423
+              },
+              {
+                "feature": "NUM_PROCEDURES",
+                "attribution": 0.015017893878504884
+              },
+              {
+                "feature": "AGE",
+                "attribution": 0.013635050493517776
+              },
+              {
+                "feature": "ETHNICITY_HISPANIC",
+                "attribution": 0.010818033462929692
+              },
+              {
+                "feature": "INSURANCE_MEDICAID",
+                "attribution": 0.01051483846764532
+              },
+              {
+                "feature": "LOG_HOSPITALIZATION_DAYS",
+                "attribution": 0.002636726832459367
+              }
             ],
-            "pred_labels": [
-              0
+            "past_features_attributions": [
+              {
+                "feature": "LOG_DAYS_UNTIL_NEXT_HOSPITALIZATION",
+                "attribution": 0.5088200312111036
+              },
+              {
+                "feature": "LOG_NUM_DRUGS",
+                "attribution": 0.3997629536433426
+              },
+              {
+                "feature": "CHARLSON_INDEX",
+                "attribution": 0.3364574007715935
+              },
+              {
+                "feature": "DISCHARGE_LOCATION_POST_ACUTE_CARE",
+                "attribution": 0.10484354843842517
+              },
+              {
+                "feature": "ADMISSION_TYPE_ELECTIVE",
+                "attribution": 0.04867241486265632
+              },
+              {
+                "feature": "NUM_PROCEDURES",
+                "attribution": 0.04501592128965877
+              },
+              {
+                "feature": "LOG_HOSPITALIZATION_DAYS",
+                "attribution": 0.040812239888468695
+              },
+              {
+                "feature": "LOG_DAYS_IN_ICU",
+                "attribution": 0.019497734706921517
+              }
             ],
-            "true_labels": [
-              0
-            ],
-            "attention_weights": [
-              [
-                0.33402198553085327,
-                0.39568451046943665,
-                0.27029353380203247,
-                0.0
-              ]
-            ],
-            "hadm_ids": [
-              188038
-            ],
-            "subject_ids": [
-              222
-            ]
+            "feature_attribution_split": {
+              "past_attribution": 0.19660712108425032,
+              "current_attribution": 0.5224524143840499
+            }
           },
           "input_features": {
             "past": [
@@ -38,11 +131,11 @@
                 "DISCHTIME": "2137-07-17T12:00:00",
                 "HOSPITALIZATION_DAYS": 1.8534722222222222,
                 "DAYS_IN_ICU": 1.8994444444444445,
-                "CHARLSON_INDEX": 4,
-                "NUM_DRUGS": 9,
-                "NUM_PROCEDURES": 2,
-                "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
-                "ADMISSION_TYPE_ELECTIVE": 0.0,
+                "CHARLSON_INDEX": 2,
+                "NUM_DRUGS": 0,
+                "NUM_PROCEDURES": 1,
+                "DISCHARGE_LOCATION_POST_ACUTE_CARE": false,
+                "ADMISSION_TYPE_ELECTIVE": false,
                 "DAYS_UNTIL_NEXT_HOSPITALIZATION": 1312.4652777777778
               },
               {
@@ -52,11 +145,11 @@
                 "DISCHTIME": "2141-02-21T15:50:00",
                 "HOSPITALIZATION_DAYS": 2.6944444444444446,
                 "DAYS_IN_ICU": 1.5456365740740743,
-                "CHARLSON_INDEX": 5,
-                "NUM_DRUGS": 25,
-                "NUM_PROCEDURES": 9,
-                "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
-                "ADMISSION_TYPE_ELECTIVE": 0.0,
+                "CHARLSON_INDEX": 3,
+                "NUM_DRUGS": 3,
+                "NUM_PROCEDURES": 1,
+                "DISCHARGE_LOCATION_POST_ACUTE_CARE": false,
+                "ADMISSION_TYPE_ELECTIVE": false,
                 "DAYS_UNTIL_NEXT_HOSPITALIZATION": 474.6423611111111
               },
               {
@@ -66,11 +159,11 @@
                 "DISCHTIME": "2142-06-19T12:30:00",
                 "HOSPITALIZATION_DAYS": 8.21875,
                 "DAYS_IN_ICU": 3.182025462962963,
-                "CHARLSON_INDEX": 13,
-                "NUM_DRUGS": 36,
-                "NUM_PROCEDURES": 2,
-                "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
-                "ADMISSION_TYPE_ELECTIVE": 1.0,
+                "CHARLSON_INDEX": 2,
+                "NUM_DRUGS": 3,
+                "NUM_PROCEDURES": 1,
+                "DISCHARGE_LOCATION_POST_ACUTE_CARE": false,
+                "ADMISSION_TYPE_ELECTIVE": true,
                 "DAYS_UNTIL_NEXT_HOSPITALIZATION": 3.6888888888888887
               }
             ],
@@ -81,29 +174,30 @@
               "DISCHTIME": "2142-07-01T17:30:00",
               "HOSPITALIZATION_DAYS": 8.519444444444444,
               "DAYS_IN_ICU": 3.944039351851852,
-              "CHARLSON_INDEX": 8,
-              "NUM_DRUGS": 22,
-              "NUM_PROCEDURES": 2,
+              "CHARLSON_INDEX": 2,
+              "NUM_DRUGS": 2,
+              "NUM_PROCEDURES": 1,
               "PARTICIPATION_DAYS": 1812,
               "HAS_DIABETES": false,
               "HAS_COPD": false,
               "HAS_CONGESTIVE_HF": false,
-              "DISCHARGE_LOCATION_POST_ACUTE_CARE": 0.0,
-              "DISCHARGE_LOCATION_HOME": 1.0,
+              "DISCHARGE_LOCATION_POST_ACUTE_CARE": false,
+              "DISCHARGE_LOCATION_HOME": true,
               "AGE": 69,
-              "GENDER_M": 0.0,
-              "ADMISSION_TYPE_ELECTIVE": 0.0,
-              "ETHNICITY_WHITE": 1.0,
-              "ETHNICITY_BLACK": 0.0,
-              "ETHNICITY_HISPANIC": 0.0,
-              "INSURANCE_MEDICAID": 0.0,
-              "INSURANCE_PRIVATE": 0.0
+              "GENDER_M": false,
+              "ADMISSION_TYPE_ELECTIVE": false,
+              "ETHNICITY_WHITE": true,
+              "ETHNICITY_BLACK": false,
+              "ETHNICITY_HISPANIC": false,
+              "INSURANCE_MEDICAID": false,
+              "INSURANCE_PRIVATE": false
             }
           },
           "metadata": {
-            "model_name": "Attention Pooling",
+            "model_name": "Attention Pooling with Current-Visit Query",
             "number_of_predictions": 1,
-            "timestamp": "2025-10-31T20:49:58.932641"
+            "timestamp": "2025-11-13T00:21:50.124295",
+            "prob_threshold": 0.2216
           }
         }
       }
