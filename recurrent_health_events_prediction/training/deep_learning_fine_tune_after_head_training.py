@@ -222,6 +222,7 @@ def fine_tune_after_head_training(
 def main(
     model_pretrained_path: str,
     model_config_path: str,
+    data_directory: str,
     overwrite_data_files: bool = False,
     cache_pytorch_datasets_path: Optional[str] = None,
     log_in_neptune: bool = False,
@@ -239,7 +240,6 @@ def main(
         data_config = yaml.safe_load(f)
 
     training_data_config = data_config["training_data"]["mimic"]
-    data_directory = "/workspaces/msc-thesis-recurrent-health-modeling/data/mimic-iii-preprocessed/copd_hf_renal_diabetes/train_test/more_prev_hosp_exp"
 
     model_config = import_yaml_config(model_config_path)
     model_config_dir_path = os.path.dirname(model_config_path)
@@ -448,6 +448,8 @@ if __name__ == "__main__":
         model_config_path += "/multiple_hosp_patients"
     model_config_path += f"/{model_dir_name}_config.yaml"
     overwrite_preprocessed = False
+    
+    data_directory = "/workspaces/msc-thesis-recurrent-health-modeling/data/mimic-iii-preprocessed/copd_hf_renal_diabetes/train_test/more_prev_hosp_exp"
 
     LOG_IN_NEPTUNE = True  # Set to True to log in Neptune
     neptune_run_name = "attention_pooling_query_curr_fine_tuned_run"
@@ -474,6 +476,7 @@ if __name__ == "__main__":
     main(
         model_pretrained_path=model_pretrained_path,
         model_config_path=model_config_path,
+        data_directory=data_directory,
         cache_pytorch_datasets_path=save_pytorch_datasets_path,
         overwrite_data_files=overwrite_preprocessed,
         log_in_neptune=LOG_IN_NEPTUNE,
