@@ -392,13 +392,17 @@ elif active_view == "Model Performance":
             st.metric(label=k.replace("_", " ").title(), value=format_percentage(metrics[k]))
 
     st.divider()
-    st.write("### Confusion Matrix")
-    cm = np.array(metrics.get("confusion_matrix", {}))
-    fig = plot_confusion_matrix(cm, class_names=["Not Readmitted", "Readmitted"])
-    st.plotly_chart(fig, use_container_width=True)
+    col1_performance, col2_performance = st.columns(2)
 
-    st.divider()
-    st.write("### Calibration Curve")
-    labels = df["True Outcome"].map({"Readmitted": 1, "Not Readmitted": 0}).to_numpy()
-    fig = plot_calibration_curve(labels, df["Readmission Prob."], show_plot=False)
-    st.plotly_chart(fig, use_container_width=True)
+    with col1_performance:
+        cm = np.array(metrics.get("confusion_matrix", {}))
+        fig = plot_confusion_matrix(cm, class_names=["Not Readmitted", "Readmitted"])
+        st.plotly_chart(fig, use_container_width=True)
+
+    with col2_performance:
+        if "True Outcome" in df.columns and "Readmission Prob." in df.columns:
+            labels = df["True Outcome"].map({"Readmitted": 1, "Not Readmitted": 0}).to_numpy()
+            fig = plot_calibration_curve(labels, df["Readmission Prob."], show_plot=False)
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("True outcome labels or predicted probabilities not available to plot calibration curve.")

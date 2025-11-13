@@ -28,15 +28,17 @@ def plot_probability_distribution(df: pd.DataFrame, prob_threshold: float) -> go
 
     fig.update_layout(bargap=0.1, yaxis_title="Count")
     
-    # Add threshold line
     fig.add_vline(
         x=prob_threshold,
         line_dash="dash",
         line_color="red",
-        annotation_text="Threshold",
+        line_width=3,   # makes the line thicker
         annotation_position="top right",
+        annotation=dict(
+            text="Threshold",
+            font=dict(size=16, color="red"),
+        ),
     )
-
     return fig
 
 def plot_subject_evolution(df, subject_id,
