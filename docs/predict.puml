@@ -1,0 +1,29 @@
+@startuml
+title Activity Diagram - Batch Prediction Pipeline (/predict)
+
+start
+
+:Receive PredictionPayload\n(tables + optional targets);
+
+:Join input tables\n(admissions, diagnoses,\nICU stays, prescriptions,\nprocedures, patients);
+
+:Preprocess features;
+
+:Scale features;
+
+:Build past hospitalization\nsequences & masks;
+
+:Build current hospitalization\nfeature vector;
+
+:Run model in inference mode\n(on past sequences + current vector);
+
+if (Targets/true labels provided?) then (yes)
+  :Compute evaluation metrics\n(accuracy, precision,\nrecall, F1, AUC, etc.);
+else (no)
+  :Skip metrics computation;
+endif
+
+:Return PredictionBatchEnvelope\n(predictions per sample + metadata\n+ metrics if available);
+
+stop
+@enduml

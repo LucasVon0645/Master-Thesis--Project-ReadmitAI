@@ -1,0 +1,45 @@
+@startuml
+left to right direction
+title Use Case Diagram for 30-Days Hospital Readmission Prediction App
+
+actor Clinician
+actor "Data Scientist" as DataScientist
+
+rectangle "Analytics App" {
+    usecase "Upload Patient\nData Files" as UC_UploadData
+    usecase "Upload\nTrue Labels" as UC_UploadLabels
+
+    usecase "Explore Cohort\nPredictions" as UC_ExploreCohort
+    usecase "View Cohort\nModel\nPerformance" as UC_Perf
+
+    usecase "Select Patient\nfrom Cohort" as UC_SelectPatient
+    usecase "View Patient\nExplainability and\nTrajectory" as UC_ExplorePatient
+}
+
+' === Actor relations ===
+Clinician --> UC_ExploreCohort
+Clinician --> UC_SelectPatient
+Clinician --> UC_ExplorePatient
+Clinician --> UC_Perf
+
+DataScientist --> UC_UploadData
+DataScientist --> UC_UploadLabels
+DataScientist --> UC_ExploreCohort
+DataScientist --> UC_Perf
+
+' === Key dependencies (minimal arrows) ===
+
+' Need data files to explore cohort predictions
+UC_ExploreCohort ..> UC_UploadData : <<include>>
+
+' Need true labels to compute performance metrics
+UC_Perf ..> UC_UploadLabels : <<include>>
+UC_Perf ..> UC_UploadData : <<include>>
+
+' Need to see cohort to select a patient
+UC_SelectPatient ..> UC_ExploreCohort : <<include>>
+
+' Need a selected patient to explore risk/trajectory
+UC_ExplorePatient ..> UC_SelectPatient : <<include>>
+
+@enduml

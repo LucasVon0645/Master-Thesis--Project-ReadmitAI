@@ -1,0 +1,45 @@
+@startuml
+title Sequence Diagram - Patient-level Explainability
+
+actor Clinician
+participant "Streamlit App" as Frontend
+participant "FastAPI Backend" as Backend
+participant "Prediction Pipeline" as Pipeline
+participant "Explainability Engine\n(Integrated Gradients)" as Explainer
+participant "Readmission Model" as Model
+
+' Clinician works on the cohort view first
+Clinician -> Frontend: View cohort predictions
+Clinician -> Frontend: Select specific patient\nfrom cohort
+
+' Frontend sends ONLY that patient's data
+Frontend -> Backend: POST /explain_single_patient\nExplainPayload (patient-specific tables\n+ optional true label)
+
+Backend -> Pipeline: run_explanation(payload)
+
+' --- Reuse prediction pipeline steps, but scoped to one patient ---
+
+Pipeline -> Pipeline: Join patient-specific tables
+Pipeline -> Pipeline: Preprocess features
+Pipeline -> Pipeline: Scale features
+Pipeline -> Pipeline: Build past hospitalization\nsequences & masks
+Pipeline -> Pipeline: Build current\nhospitalization feature vector
+
+' Compute prediction for this patient (if not already stored)
+Pipeline -> Model: Predict(past_sequences,\ncurrent_vector)
+Model --> Pipeline: Predicted probability\n+ label for selected patient
+
+' --- Explainability-specific part ---
+
+Pipeline -> Explainer: Compute attributions\nvia Integrated Gradients\n(model, patient inputs)
+Explainer --> Pipeline: Feature-level attributions\n(past + current features)
+
+Pipeline -> Pipeline: Derive past/current\nfeature importances\n(e.g., top contributing features\nfor past stays and current stay)
+
+' Build explain response
+Pipeline --> Backend: ExplanationResponse\n(patient prediction,\nmodel features,\nIG attributions,\npast & current feature importances)
+Backend --> Frontend: 200 OK + JSON response
+
+Frontend --> Clinician: Display patient risk,\nkey contributing features,\nIG attributions and\npast/current feature importances
+
+@enduml

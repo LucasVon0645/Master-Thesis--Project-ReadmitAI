@@ -1,0 +1,33 @@
+@startuml
+title Sequence Diagram - /predict (Batch Cohort Prediction)
+
+actor Clinician
+participant "Streamlit App" as Frontend
+participant "FastAPI Backend" as Backend
+participant "Prediction Pipeline" as Pipeline
+participant "Readmission Model" as Model
+
+Clinician -> Frontend: Upload patient data tables\n(admissions, diagnoses, ICU, etc.)
+Clinician -> Frontend: Trigger cohort prediction
+
+Frontend -> Backend: POST /predict\nPredictionPayload (tables + optional targets)
+Backend -> Pipeline: run_batch_prediction(payload)
+
+Pipeline -> Pipeline: Join input tables\n(admissions, diagnoses, ICU stays,\nprescriptions, procedures, patients)
+Pipeline -> Pipeline: Preprocess features
+Pipeline -> Pipeline: Scale features
+Pipeline -> Pipeline: Build past hospitalization\nsequences & masks
+Pipeline -> Pipeline: Build current\nhospitalization feature vector
+
+Pipeline -> Model: Predict(past_sequences,\ncurrent_vector)
+Model --> Pipeline: Predicted probabilities\n+ labels per admission\n+ attention weights
+
+alt targets/true labels provided
+  Pipeline -> Pipeline: Compute evaluation metrics\n(AUC, F1, confusion matrix, etc.)
+end
+
+Pipeline --> Backend: PredictionBatchEnvelope\n(prediction, metadata, [metrics if labels])
+Backend --> Frontend: 200 OK + JSON response
+Frontend --> Clinician: Show per-sample predictions,\ncohort overview, and metrics (if available)
+
+@enduml
