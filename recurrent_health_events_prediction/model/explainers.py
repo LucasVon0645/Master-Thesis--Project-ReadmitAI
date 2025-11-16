@@ -278,7 +278,7 @@ def _explain_batch(
     any_past_obs = mask.any().item()
     
     if not any_past_obs:
-            attr_past = None
+            attr_past =  torch.zeros((x_past.size(0), x_past.size(2)), device=device)
             attr_curr = ig.attribute(
                 inputs=x_curr,
                 baselines=(base_curr,),
@@ -305,6 +305,7 @@ def _explain_batch(
     if any_past_obs:
         # past features aggregated over time: [B, D_long]
         past_feat_importance = attr_past.abs().sum(dim=1)
+        attr_past_summed = attr_past.sum(dim=1)  # sum signed attributions over time steps
         # time importance aggregated over features: [B, T]
         time_importance = attr_past.abs().sum(dim=2)
     else:
@@ -313,7 +314,7 @@ def _explain_batch(
 
     out = {
         "attr_curr": attr_curr.detach().cpu(),
-        "attr_past": attr_past.detach().cpu() if attr_past is not None else None,
+        "attr_past": attr_past_summed.detach().cpu() if attr_past is not None else None,
         "curr_importance": curr_importance.detach().cpu(),
         "past_feat_importance": past_feat_importance.detach().cpu(),
         "time_importance": time_importance.detach().cpu(),
@@ -409,25 +410,30 @@ def explain_deep_learning_model_feat(
     for i in range(len(res["curr_importance"])):
         # Current features
         vals_curr = res["curr_importance"][i].detach().cpu().numpy()
+        vals_curr_signed = res["attr_curr"][i].detach().cpu().numpy()
         df_curr = pd.DataFrame({
             "sample_idx": i,
             "feature": feature_names_curr,
-            "attribution": vals_curr
+            "attribution": vals_curr,
+            "attribution_signed": vals_curr_signed
         })
         df_curr_list.append(df_curr)
 
         # Past features
         vals_past = res["past_feat_importance"][i].detach().cpu().numpy()
+        vals_past_signed = res["attr_past"][i].detach().cpu().numpy()
         df_past = pd.DataFrame({
             "sample_idx": i,
             "feature": feature_names_past,
-            "attribution": vals_past
+            "attribution": vals_past,
+            "attribution_signed": vals_past_signed
         })
         df_past_list.append(df_past)
 
     df_curr_all = pd.concat(df_curr_list, ignore_index=True)
     df_past_all = pd.concat(df_past_list, ignore_index=True)
     
+    df_split = None
     if "hist_vs_curr_history" in res and "hist_vs_curr_current" in res:
         df_split = pd.DataFrame({
             "sample_idx": list(range(len(res["hist_vs_curr_history"]))),
