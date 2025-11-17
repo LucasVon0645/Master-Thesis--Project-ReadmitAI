@@ -665,10 +665,10 @@ class ModelPrediction:
 
             auroc = roc_auc_score(true_labels, pred_probs)
             conf_matrix = confusion_matrix(true_labels, pred_labels).tolist()
-            recall = recall_score(true_labels, pred_labels)
+            recall = recall_score(true_labels, pred_labels, zero_division=0)
             accuracy = accuracy_score(true_labels, pred_labels)
-            precision = precision_score(true_labels, pred_labels)
-            f1 = f1_score(true_labels, pred_labels)
+            precision = precision_score(true_labels, pred_labels, zero_division=0)
+            f1 = f1_score(true_labels, pred_labels, zero_division=0)
         else:
             auroc = None
             conf_matrix = None

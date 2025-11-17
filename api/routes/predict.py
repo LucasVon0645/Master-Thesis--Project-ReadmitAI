@@ -38,7 +38,7 @@ def predict(
     payload: PredictionPayload = Body(
         ...,
         description="Batched patient data for prediction.",
-        example=example_payload_predict,
+        examples=example_payload_predict,
     ),
     svc: ModelPrediction = Depends(get_service),
 ) -> PredictionBatchEnvelope:

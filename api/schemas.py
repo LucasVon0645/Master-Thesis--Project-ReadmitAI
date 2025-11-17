@@ -1,13 +1,12 @@
 # api/schemas.py
 
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # ---- Base class allowing extra columns ----
 class _AllowExtra(BaseModel):
-    class Config:
-        extra = "allow"  # accept additional columns beyond the required ones
+    model_config = ConfigDict(extra="allow")
 
 
 # --------------------------------------------------------

@@ -355,6 +355,8 @@ class FeatureExtractorMIMIC:
             icu_stays_df["OUTTIME"], errors="coerce"
         )
         patients_df["DOB"] = pd.to_datetime(patients_df["DOB"], errors="coerce")
+        if "DOD" in patients_df.columns:
+            patients_df["DOD"] = pd.to_datetime(patients_df["DOD"], errors="coerce")
 
         return admissions_df, icu_stays_df, patients_df
 

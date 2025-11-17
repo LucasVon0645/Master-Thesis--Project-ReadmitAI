@@ -31,7 +31,7 @@ router = APIRouter(prefix="/explain_single_patient", tags=["explain_single_patie
              description="Receives patient-related tables and returns model explanation and computed features for a single patient.",
              responses=example_response_explain_single_patient)
 def explain_single_patient(
-    payload: PredictionPayload = Body(..., description="Single patient explanation.", example=example_payload_single_patient),
+    payload: PredictionPayload = Body(..., description="Single patient explanation.", examples=example_payload_single_patient),
     svc: ModelPrediction = Depends(get_service),
 ) -> ExplainSinglePatientEnvelope:
     """
