@@ -348,7 +348,7 @@ def main(
 
 if __name__ == "__main__":
     print("Imports complete. Running main...")
-    model_dir_name = "attention_pooling_query_curr_two_stage"  # Change as needed
+    model_dir_name = "cross_attention_pooling_two_stage"  # Change as needed
     multiple_hosp_patients = False  # True if patients can have multiple hospital admissions
     model_config_path = f"/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/{model_dir_name}"
     if multiple_hosp_patients:
@@ -357,7 +357,7 @@ if __name__ == "__main__":
     overwrite_preprocessed = False
 
     LOG_IN_NEPTUNE = True  # Set to True to log in Neptune
-    neptune_run_name = f"attention_pooling_query_curr_head_pretrained_run"
+    neptune_run_name = f"cross_attention_pooling_head_pretrained_run"
     neptune_tags = ["deep_learning", "mimic"]
     if multiple_hosp_patients:
         neptune_tags.append("multiple_hosp_patients")
@@ -384,5 +384,5 @@ if __name__ == "__main__":
         neptune_run_name=neptune_run_name,
         neptune_tags=neptune_tags,
         tensorboard_run_name=tensorboard_run_name,
-        pretrained_filename="attention_pooling_query_curr_head_pretrained",
+        pretrained_filename="cross_attention_pooling_head_pretrained",
     )

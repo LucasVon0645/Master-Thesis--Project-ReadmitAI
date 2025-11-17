@@ -440,8 +440,8 @@ def main(
 
 if __name__ == "__main__":
     print("Imports complete. Running main...")
-    model_dir_name = "attention_pooling_query_curr_two_stage"  # Change as needed
-    model_pretrained_path = "/workspaces/msc-thesis-recurrent-health-modeling/_runs/attention_pooling_query_curr_two_stage_20251108_162420/attention_pooling_query_curr_head_pretrained.pth"
+    model_dir_name = "cross_attention_pooling_two_stage"  # Change as needed
+    model_pretrained_path = "/workspaces/msc-thesis-recurrent-health-modeling/_runs/cross_attention_pooling_two_stage_20251116_032616/cross_attention_pooling_head_pretrained.pth"
     multiple_hosp_patients = False  # True if patients can have multiple hospital admissions
     model_config_path = f"/workspaces/msc-thesis-recurrent-health-modeling/_models/mimic/deep_learning/{model_dir_name}"
     if multiple_hosp_patients:
@@ -452,7 +452,7 @@ if __name__ == "__main__":
     data_directory = "/workspaces/msc-thesis-recurrent-health-modeling/data/mimic-iii-preprocessed/copd_hf_renal_diabetes/train_test/more_prev_hosp_exp"
 
     LOG_IN_NEPTUNE = True  # Set to True to log in Neptune
-    neptune_run_name = "attention_pooling_query_curr_fine_tuned_run"
+    neptune_run_name = "cross_attention_pooling_fine_tuned_run"
     neptune_tags = ["deep_learning", "mimic"]
     if multiple_hosp_patients:
         neptune_tags.append("multiple_hosp_patients")
@@ -483,5 +483,5 @@ if __name__ == "__main__":
         neptune_run_name=neptune_run_name,
         neptune_tags=neptune_tags,
         tensorboard_run_name=tensorboard_run_name,
-        model_filename="attention_pooling_query_curr_fine_tuned",
+        model_filename="cross_attention_pooling_fine_tuned",
     )
