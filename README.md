@@ -11,7 +11,7 @@ Both approaches are evaluated against baseline models using simple historical su
 
 Hospital readmissions can be defined as unplanned admissions to a hospital within a certain time frame (e.g., 30 days) after discharge from a previous hospitalization. These events are often costly, frequent, and often preventable. Accurately identifying patients at high risk of returning to the hospital shortly after discharge helps clinicians intervene earlier, improve patient outcomes, and reduce pressure on healthcare systems.
 
-![Hospital Readmission Cycle](app\images\hosp-readm-cycle.png)
+![Hospital Readmission Cycle](app/images/hosp-readm-cycle.png)
 
 While traditional approaches rely on coarse historical features, many relevant temporal patterns in a patient’s clinical trajectory may be lost. This motivates the exploration of sequential modeling methods capable of capturing richer temporal information.
 
