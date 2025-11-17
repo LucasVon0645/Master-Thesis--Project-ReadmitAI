@@ -1,6 +1,34 @@
 # Recurrent Health Events Prediction
 
-This project uses machine learning techniques to predict recurrent health events, such as hospital readmissions, based on structured clinical data.
+This project investigates machine learning approaches for predicting recurrent health events—especially hospital readmissions—using structured clinical data. The repository contains code for two related works:
+
+1. DT-HMM–based transfer learning (Master’s thesis, TU Darmstadt)
+2. Attention-based deep learning models (Final Graduate Report / "TCC" at at Poli-USP Brazil)
+
+Both approaches are evaluated against baseline models using simple historical summary features (Logistic Regression, Random Forests, LightGBM).
+
+## Motivation
+
+Hospital readmissions can be defined as unplanned admissions to a hospital within a certain time frame (e.g., 30 days) after discharge from a previous hospitalization. These events are often costly, frequent, and often preventable. Accurately identifying patients at high risk of returning to the hospital shortly after discharge helps clinicians intervene earlier, improve patient outcomes, and reduce pressure on healthcare systems.
+
+![Hospital Readmission Cycle](app\images\hosp-readm-cycle.png)
+
+While traditional approaches rely on coarse historical features, many relevant temporal patterns in a patient’s clinical trajectory may be lost. This motivates the exploration of sequential modeling methods capable of capturing richer temporal information.
+
+## Objectives
+
+The DT-HMM–based transfer learning approach, developed in the Master’s thesis at TU Darmstadt, introduced an interpretable representation-learning method for patient trajectories. However, these features did not consistently outperform simple baselines.
+
+![DT-HMM Transfer Learning Architecture](assets/dt-hmm-transfer-learning-arch.png)
+
+Another work, performed at Poli-USP Brazil, extends this research by evaluating attention-based deep learning models as an alternative for extracting meaningful temporal patterns from longitudinal health data.
+
+![Example of Attention-based Deep Learning Architecture](assets/simple-attn-pool-curr-query-arch.png)
+
+Together, the two main objectives of this project are:
+
+1. Research Goal: Explore and compare sequential modeling techniques—DT-HMM and attention-based deep learning—against baseline models for predicting hospital readmission.
+2. Practical Goal: Develop a prototype web application (FastAPI backend + Streamlit frontend) to demonstrate how such predictive models can be integrated into real clinical workflows.
 
 ## 📦 Project Setup
 
@@ -81,12 +109,23 @@ bash scripts/download_mimic_files.sh
 
 ```text
 .
-├── scripts/                # Utility scripts (e.g., for data download)
-├── src/                    # Main source code for training and prediction
-├── data/                   # Placeholders for datasets (not tracked)
-├── pyproject.toml          # Poetry dependency configuration
-├── poetry.lock             # Locked dependency versions for reproducibility
-└── README.md
+├── recurrent_health_events_prediction/   # Core source code for model training and prediction
+├── app/                                  # Streamlit Web Application (Frontend)
+├── api/                                  # FastAPI Backend serving model predictions
+├── scripts/                              # Utility scripts (e.g., data preparation)
+├── tests/                                # Automated tests (pytest)
+├── docs/                                 # UML diagrams and backend documentation
+├── assets/                               # Images, plots, and auxiliary files
+│
+│   # Local folders not tracked by Git
+├── _models/                              # Trained models (deep learning, classical ML, HMMs)
+├── _runs/                                # Training/evaluation runs and logs (e.g., TensorBoard)
+├── _runs_optuna/                         # Hyperparameter optimization runs (Optuna)
+│
+├── pyproject.toml                        # Poetry project configuration and dependencies
+├── poetry.lock                           # Locked dependency versions for reproducibility
+└── README.md                             # Project documentation
+
 ```
 
 ---
