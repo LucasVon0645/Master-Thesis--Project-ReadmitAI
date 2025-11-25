@@ -11,6 +11,7 @@ from app.plots import (
     plot_feature_attributions,
     plot_probability_distribution,
     plot_subject_evolution,
+    plot_calibration_curve,
 )
 from app.utils import (
     build_att_weights_dict,
@@ -18,19 +19,21 @@ from app.utils import (
     format_percentage,
     get_specific_patient_pred,
     initialize_session_state_vars,
+    load_css,
     make_feature_attr_df,
     select_patient_data,
     show_kv_two_dfs,
     sidebar_file_uploads,
     populate_session_state_from_files,
 )
-from recurrent_health_events_prediction.training.utils import plot_calibration_curve
 
 st.set_page_config(
     page_title="Hospital Readmission Prediction System",
     layout="wide",
     page_icon=":hospital:",
 )
+
+load_css("/workspaces/msc-thesis-recurrent-health-modeling/app/style.css")
 
 st.title("Hospital Readmission Prediction System :hospital:")
 

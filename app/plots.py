@@ -5,6 +5,7 @@ import pandas as pd
 
 import plotly.express as px
 import plotly.graph_objects as go
+from sklearn.calibration import calibration_curve
 
 from app.utils import format_feature_value
 
@@ -15,7 +16,7 @@ def plot_probability_distribution(df: pd.DataFrame, prob_threshold: float) -> go
     else:
         color_col = None
         title = "Distribution of Readmission Probabilities"
-    
+
     fig = px.histogram(
         df,
         x="Readmission Prob.",
@@ -26,8 +27,15 @@ def plot_probability_distribution(df: pd.DataFrame, prob_threshold: float) -> go
         height=400,
     )
 
-    fig.update_layout(bargap=0.1, yaxis_title="Count")
-    
+    fig.update_layout(
+        bargap=0.1,
+        yaxis_title="Count",
+        legend=dict(font=dict(size=20)),
+        title=dict(font=dict(size=24)),
+    )
+    fig.update_xaxes(title_font=dict(size=20))
+    fig.update_yaxes(title_font=dict(size=20))
+
     fig.add_vline(
         x=prob_threshold,
         line_dash="dash",
@@ -36,7 +44,8 @@ def plot_probability_distribution(df: pd.DataFrame, prob_threshold: float) -> go
         annotation_position="top right",
         annotation=dict(
             text="Threshold",
-            font=dict(size=16, color="red"),
+            font=dict(size=20, color="red"),
+            yshift=15,   # move annotation upward
         ),
     )
     return fig
@@ -111,31 +120,98 @@ def plot_confusion_matrix(
     conf_matrix: np.ndarray,
     class_names: list[str],
 ):
-    # Normalize if you want percentages (optional)
-    # conf_matrix = conf_matrix.astype('float') / conf_matrix.sum(axis=1, keepdims=True)
-
     fig = go.Figure(
         data=go.Heatmap(
             z=conf_matrix,
-            x=class_names,  # predicted labels
-            y=class_names,  # true labels
+            x=class_names,
+            y=class_names,
             colorscale="Blues",
             text=conf_matrix,
             texttemplate="%{text}",
+            textfont=dict(size=24),
             hovertemplate="True: %{y}<br>Pred: %{x}<br>Count: %{z}<extra></extra>",
-            colorbar=dict(title="Count"),
+            colorbar=dict(
+                title="Count"
+            ),
         )
     )
 
     fig.update_layout(
-        title="Confusion Matrix",
-        xaxis_title="Predicted label",
-        yaxis_title="True label",
-        yaxis_autorange="reversed",  # so [0,0] is top-left
+        title=dict(text="Confusion Matrix", font=dict(size=24)),
+        xaxis=dict(
+            title="Predicted label",
+            tickfont=dict(size=16),
+        ),
+        yaxis=dict(
+            title="True label",
+            tickfont=dict(size=16),
+            autorange="reversed",
+        ),
         template="plotly_white",
         width=600,
         height=600,
     )
+    
+    fig.update_xaxes(title_font=dict(size=18))
+    fig.update_yaxes(title_font=dict(size=18))
+
+    return fig
+
+def plot_calibration_curve(labels, pred_prob, n_bins=5, title="Calibration Curve",
+                           save_path: Optional[str] = None, show_plot=True):
+
+    fraction_of_positives, mean_predicted_value = calibration_curve(
+        labels, pred_prob, n_bins=n_bins
+    )
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=mean_predicted_value,
+        y=fraction_of_positives,
+        mode='lines+markers',
+        name='Calibration Curve'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=[0, 1],
+        y=[0, 1],
+        mode='lines',
+        name='Perfectly Calibrated',
+        line=dict(dash='dash')
+    ))
+
+    fig.update_layout(
+        title=dict(text=title, font=dict(size=24)),
+        xaxis=dict(
+            title="Mean Predicted Probability",
+            tickfont=dict(size=16),
+            range=[0, 1],
+        ),
+        yaxis=dict(
+            title="Fraction of Positives",
+            tickfont=dict(size=16),
+            range=[0, 1],
+        ),
+        legend=dict(
+            title=dict(text="Legend", font=dict(size=18)),
+            font=dict(size=16)
+        ),
+        template="plotly_white",
+        width=800,
+        height=400
+    )
+    
+    fig.update_xaxes(title_font=dict(size=18))
+    fig.update_yaxes(title_font=dict(size=18))
+
+    if save_path:
+        if not save_path.endswith('.html'):
+            save_path += '.html'
+        fig.write_html(save_path)
+
+    if show_plot:
+        fig.show()
 
     return fig
 
