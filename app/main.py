@@ -14,6 +14,8 @@ from app.plots import (
     plot_calibration_curve,
 )
 from app.utils import (
+    get_feature_value_dfs,
+    get_mean_training_feature_values,
     build_att_weights_dict,
     build_predictions_dataframe,
     format_percentage,
@@ -279,9 +281,14 @@ elif active_view == "Specific Patient":
 
         current_features_dict = input_features.get("current", {})
         past_features_df = pd.DataFrame(input_features.get("past", [{}]))
+    
+        curr_feat_values_df, past_mean_feat_values_df = get_feature_value_dfs(current_features_dict, past_features_df)
+        
+        mean_curr_train_df, mean_past_train_df = get_mean_training_feature_values()
 
-        curr_features_att_df = make_feature_attr_df(explanation["current_features_attributions"])
-        past_features_att_df = make_feature_attr_df(explanation["past_features_attributions"])
+        curr_features_att_df = make_feature_attr_df(explanation["current_features_attributions"], curr_feat_values_df, mean_curr_train_df)
+        past_features_att_df = make_feature_attr_df(explanation["past_features_attributions"], past_mean_feat_values_df, mean_past_train_df)
+        
         curr_overall_attr = explanation["feature_attribution_split"]["current_attribution"]
         past_overall_attr = explanation["feature_attribution_split"]["past_attribution"]
 
@@ -349,7 +356,9 @@ elif active_view == "Specific Patient":
                 st.plotly_chart(fig, use_container_width=True)
                 st.expander(
                     "Full Current Admission Feature Attributions", expanded=False
-                ).dataframe(curr_features_att_df, use_container_width=True, hide_index=True)
+                ).dataframe(curr_features_att_df.style.format({
+                            col: "{:.3f}" for col in curr_features_att_df.select_dtypes(include="float").columns
+                        }), use_container_width=True, hide_index=True)
             with feat_attr_col2:
                 st.metric(
                     "Overall Attribution — Past Admissions",
@@ -366,7 +375,9 @@ elif active_view == "Specific Patient":
                 st.plotly_chart(fig, use_container_width=True)
                 st.expander(
                     "Full Past Admissions Feature Attributions", expanded=False
-                ).dataframe(past_features_att_df, use_container_width=True, hide_index=True)
+                ).dataframe(past_features_att_df.style.format({
+                                col: "{:.3f}" for col in past_features_att_df.select_dtypes(include="float").columns
+                            }), use_container_width=True, hide_index=True)
         st.caption(
             "Feature attributions indicate the contribution of each feature to the model's prediction."
         )

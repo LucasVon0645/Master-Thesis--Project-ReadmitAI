@@ -1,4 +1,4 @@
 /* styles.css */
-.stCaption {
+.stCaptionContainer .stCaption .stMarkdownContainer {
     font-size: 1.2rem !important;
 }

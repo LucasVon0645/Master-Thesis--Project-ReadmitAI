@@ -120,6 +120,7 @@ def initialize_session_state_vars():
         st.session_state.selected_patient_id = None
     if "att_weights_dict" not in st.session_state:
         st.session_state.att_weights_dict = {}
+    load_mean_training_feature_values()
 
 def populate_session_state_from_files(files: Dict[str, Any], st_obj) -> None:
     """Read uploaded CSV files and populate Streamlit `session_state`.
@@ -433,15 +434,89 @@ def show_kv_two_dfs(
                 },
             )
 
-def make_feature_attr_df(explanations: List[Dict]) -> pd.DataFrame:
+def load_mean_training_feature_values():
+    if "mean_curr_df" not in st.session_state or "mean_past_df" not in st.session_state:
+        mean_curr_df = pd.read_csv("/workspaces/msc-thesis-recurrent-health-modeling/app/data/mean_current_features.csv")
+        mean_past_df = pd.read_csv("/workspaces/msc-thesis-recurrent-health-modeling/app/data/mean_longitudinal_features.csv")
+        
+        def inverse_log_features(df, value_col="mean_value_unscaled"):
+            """
+            - Applies np.expm1() to rows where feature starts with 'LOG_'
+            - Removes the 'LOG_' prefix from feature names
+            """
+            df = df.copy()
+
+            # Mask for logged features
+            mask = df["feature"].str.startswith("LOG_")
+
+            # Inverse log1p → expm1
+            df.loc[mask, value_col] = np.expm1(df.loc[mask, value_col])
+
+            # Remove prefix LOG_
+            df.loc[mask, "feature"] = df.loc[mask, "feature"].str[len("LOG_"):]
+
+            return df
+        
+        mean_curr_df = inverse_log_features(mean_curr_df)
+        mean_past_df = inverse_log_features(mean_past_df)
+        
+        st.session_state.mean_curr_df = mean_curr_df[["feature", "mean_value_unscaled"]]
+        st.session_state.mean_past_df = mean_past_df[["feature", "mean_value_unscaled"]]
+        return mean_curr_df, mean_past_df
+
+def get_mean_training_feature_values() -> Tuple[pd.DataFrame, pd.DataFrame]:
+    return st.session_state.mean_curr_df, st.session_state.mean_past_df
+
+def summarize_past_features(df):
+    # Columns to exclude from averaging
+    exclude = ["SUBJECT_ID", "HADM_ID", "ADMITTIME", "DISCHTIME"]
+
+    # Select only the feature columns
+    feature_cols = [c for c in df.columns if c not in exclude]
+
+    # Compute mean for each feature
+    mean_series = df[feature_cols].mean(numeric_only=True)
+
+    # Convert to desired format: feature | value
+    out_df = mean_series.reset_index()
+    out_df.columns = ["feature", "value"]
+
+    return out_df
+
+def get_feature_value_dfs(
+    current_features_dict: dict,
+    past_features_df: pd.DataFrame,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Convert current and past features DataFrames to feature-value DataFrames.
+    """
+    
+    current_features_df = pd.DataFrame(list(current_features_dict.items()), columns=["feature", "value"])
+    past_features_summary_df = summarize_past_features(past_features_df)
+    
+    return current_features_df, past_features_summary_df
+    
+def make_feature_attr_df(
+    explanations: List[Dict], feat_values_df: pd.DataFrame, mean_feat_df: pd.DataFrame
+) -> pd.DataFrame:
     """
     Convert feature attributions dict to a DataFrame for plotting.
     """
+
     feature_attr_df = pd.DataFrame(explanations)
+    feature_attr_df["feature"] = feature_attr_df["feature"].str.replace("LOG_", "")
+    feature_attr_df = feature_attr_df.merge(
+        feat_values_df[["feature", "value"]], how="left", on="feature"
+    )
+    feature_attr_df = feature_attr_df.merge(
+        mean_feat_df[["feature", "mean_value_unscaled"]], how="left", on="feature"
+    )
+
     feature_attr_df = feature_attr_df.sort_values(
         by="attribution", key=lambda x: x.abs(), ascending=False
     ).reset_index(drop=True)
+
     feature_attr_df = feature_attr_df.rename(
-        columns={"feature": "Feature", "attribution": "Attribution"}
+        columns={"feature": "Feature", "attribution": "Attribution", "value": "Value", "mean_value_unscaled": "Baseline Value"}
     )
     return feature_attr_df

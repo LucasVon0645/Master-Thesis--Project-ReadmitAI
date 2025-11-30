@@ -263,17 +263,22 @@ def make_attention_fig(attention_weights, hadm_ids, kind="line"):
 
     fig = go.Figure(trace)
     fig.update_layout(
-        title="Attention over the last admissions",
+        title=dict(text="Attention over the last admissions", font=dict(size=24)),
         xaxis=dict(
             title=f"Admission index within observation window "
                   f"(1 = first of the last {n} admissions)",
             dtick=1,          # show only integer ticks (… 1, 2, 3, …)
             tick0=1,          # start ticks at 1
             range=[0.5, n + 0.5],  # centers bars/points on integer positions
+            tickfont=dict(size=16)
         ),
-        yaxis=dict(title="Attention weight"),
+        yaxis=dict(title="Attention weight", tickfont=dict(size=16)),
         margin=dict(l=60, r=20, t=50, b=70),
     )
+    
+    fig.update_xaxes(title_font=dict(size=18))
+    fig.update_yaxes(title_font=dict(size=18))
+    
     return fig
 
 def plot_feature_attributions(
@@ -301,6 +306,20 @@ def plot_feature_attributions(
         title=title,
         orientation="h",
     )
+    
+    fig.update_layout(
+        title=dict(font=dict(size=24)),
+        xaxis=dict(
+            tickfont=dict(size=16),
+        ),
+        yaxis=dict(
+            tickfont=dict(size=16),
+        ),
+    )
+    
+    fig.update_xaxes(title_font=dict(size=18))
+    fig.update_yaxes(title_font=dict(size=18))
+    
     if output_path:
         fig.write_html(output_path)
     

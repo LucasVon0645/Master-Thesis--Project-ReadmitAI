@@ -702,9 +702,13 @@ class ModelPrediction:
             "past": past_features,
             "current": current_features,
         }
+        
+        df_curr = df_curr.sort_values(by="attribution", ascending=False)
+        df_past = df_past.sort_values(by="attribution", ascending=False)
 
-        df_curr = df_curr[["feature", "attribution"]].sort_values(by="attribution", ascending=False)
-        df_past = df_past[["feature", "attribution"]].sort_values(by="attribution", ascending=False)
+        df_curr = df_curr[["feature", "attribution_signed"]].rename(columns={"attribution_signed": "attribution"})
+        df_past = df_past[["feature", "attribution_signed"]].rename(columns={"attribution_signed": "attribution"})
+        
         split_dict = df_split[["past_attribution", "current_attribution"]].iloc[0].to_dict()
 
         return {
