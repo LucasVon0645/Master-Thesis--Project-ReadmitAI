@@ -3,7 +3,7 @@
 This project investigates machine learning approaches for predicting recurrent health events—especially hospital readmissions—using structured clinical data. The repository contains code for two related works:
 
 1. DT-HMM–based transfer learning (Master’s thesis, TU Darmstadt)
-2. Attention-based deep learning models (Final Graduate Report / "TCC" at at Poli-USP Brazil)
+2. Attention-based deep learning models (Final Graduate Report / "TCC" at Poli-USP Brazil)
 
 Both approaches are evaluated against baseline models using simple historical summary features (Logistic Regression, Random Forests, LightGBM).
 
