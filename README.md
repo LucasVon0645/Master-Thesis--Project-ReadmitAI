@@ -1,4 +1,4 @@
-# Recurrent Health Events Prediction
+# Recurrent Health Events Prediction - Master Thesis & ReadmitAI
 
 This project investigates machine learning approaches for predicting recurrent health events—especially hospital readmissions—using structured clinical data. The repository contains code for two related works:
 
@@ -15,13 +15,15 @@ Hospital readmissions can be defined as unplanned admissions to a hospital withi
 
 While traditional approaches rely on coarse historical features, many relevant temporal patterns in a patient’s clinical trajectory may be lost. This motivates the exploration of sequential modeling methods capable of capturing richer temporal information.
 
+---
+
 ## Objectives
 
 The DT-HMM–based transfer learning approach, developed in the Master’s thesis at TU Darmstadt, introduced an interpretable representation-learning method for patient trajectories. However, these features did not consistently outperform simple baselines.
 
 ![DT-HMM Transfer Learning Architecture](assets/dt-hmm-transfer-learning-arch.png)
 
-Another work, performed at Poli-USP Brazil, extends this research by evaluating attention-based deep learning models as an alternative for extracting meaningful temporal patterns from longitudinal health data.
+Another work (ReadmitAI), performed at Poli-USP Brazil, extends this research by evaluating attention-based deep learning models as an alternative for extracting meaningful temporal patterns from longitudinal health data.
 
 ![Example of Attention-based Deep Learning Architecture](assets/simple-attn-pool-curr-query-arch.png)
 
@@ -30,12 +32,29 @@ Together, the two main objectives of this project are:
 1. Research Goal: Explore and compare sequential modeling techniques—DT-HMM and attention-based deep learning—against baseline models for predicting hospital readmission.
 2. Practical Goal: Develop a prototype web application (FastAPI backend + Streamlit frontend) to demonstrate how such predictive models can be integrated into real clinical workflows.
 
+---
+
+## ReadmitAI Web Application
+
+The ReadmitAI web application provides an interactive interface for clinicians to input patient data and receive readmission risk predictions. The system architecture consists of a FastAPI backend that serves the predictive models (only one of the attention-based models) and a Streamlit frontend for user interaction.
+
+### Architecture Diagram:
+![ReadmitAI Web App Architecture](docs/system-arch.png)
+
+### Use Cases Diagram:
+![ReadmitAI Use Cases](docs/usecase.png)
+
+### Sequence Diagram for Prediction Flow:
+![ReadmitAI Sequence Diagram](docs/seq-diagram-predict.png)
+
+---
+
 ## 📦 Project Setup
 
 ### 1. Clone the Repository
 
 ```bash
-git clone git@gitlab.com:LucasVonAncken/master-thesis-recurrent-health-events-prediction.git
+git clone https://github.com/LucasVon0645/Master-Thesis--Project-ReadmitAI.git
 cd master-thesis-recurrent-health-events-prediction
 ```
 
@@ -58,12 +77,11 @@ poetry install
 ### 3. Activate the Environment
 
 ```bash
-poetry shell
+poetry env activate
 ```
 
----
 
-## 📦 Optional Setup: Using a Dev Container (Recommended for Reproducibility)
+### 📦 Optional Setup: Using a Dev Container (Recommended for Reproducibility)
 
 If you’re using Visual Studio Code and want a fully reproducible, OS-independent development environment, you can use the preconfigured Dev Container.
 
@@ -71,7 +89,7 @@ This ensures that all tools, dependencies, and Python versions are installed ide
 
 ⚠️ **Note**: The first build of the container may take a long time (e.g., ~20–25 minutes).This is normal — the container compiles Python from source and installs scientific libraries with native code. Subsequent launches will be much faster thanks to Docker caching.
 
-### 🔧 To Use the Dev Container:
+#### 🔧 To Use the Dev Container:
 
 1. Install Docker Desktop
 
@@ -87,9 +105,19 @@ This ensures that all tools, dependencies, and Python versions are installed ide
 
 VS Code will build the environment and reopen your project inside a fully configured container.
 
+---
+
 ## 🚀 Running the Project
 
-Once the environment is activated, you can run any of the project's main scripts. Check the `src/` folder.
+For running the ReadmitAI web application, use the following commands to start the FastAPI backend and Streamlit frontend:
+
+```bash
+poetry run api
+```
+
+```bash
+poetry run app
+```
 
 ---
 
@@ -132,9 +160,9 @@ bash scripts/download_mimic_files.sh
 
 ## ✅ Requirements
 
-- Python 3.9+
+- Python >=3.10 and <3.11
 - Poetry
-- Access to the MIMIC-III or MIMIC-IV dataset
+- Access to the MIMIC-III dataset
 
 ---
 
